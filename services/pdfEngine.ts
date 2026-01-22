@@ -3,6 +3,11 @@ import { PDFDocument, degrees } from 'pdf-lib';
 import { PDFActionResponse } from '../types';
 import * as pdfjsLib from 'pdfjs-dist';
 
+// Ensure the worker is configured for the engine service as well
+if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.worker.mjs';
+}
+
 /**
  * myPDF Local Engine - 100% Privacy
  */
@@ -77,9 +82,12 @@ export const convertToImages = async (file: File): Promise<PDFActionResponse> =>
       canvas.width = viewport.width;
 
       if (context) {
+        // Restore 'canvas' to the render parameters as it is required by the types in this environment
         await page.render({ canvasContext: context, viewport, canvas }).promise;
         const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-        if (blob) images.push(new Uint8Array(await blob.arrayBuffer()));
+        if (blob) {
+          images.push(new Uint8Array(await blob.arrayBuffer()));
+        }
       }
     }
     return { success: true, data: images };

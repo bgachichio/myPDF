@@ -146,10 +146,8 @@ const PDFPage: React.FC<{
       {isSplitMode && (
         <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-white rounded-full p-1.5 md:p-2 shadow-xl border border-slate-100 transition-transform active:scale-90 cursor-pointer">
           {isSelected ? (
-            /* Combined duplicate className attributes into one */
             <CheckCircle2 className="text-blue-600 md:w-7 md:h-7" size={24} />
           ) : (
-            /* Combined duplicate className attributes into one */
             <Circle className="text-slate-200 md:w-7 md:h-7" size={24} />
           )}
         </div>
@@ -375,7 +373,9 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
       if (res.success && res.data) {
         if (Array.isArray(res.data)) {
           res.data.forEach((b: any, i: number) => {
-            const url = URL.createObjectURL(new Blob([b]));
+            // Fix: Specify the correct MIME type for the Blob based on the current view
+            const mimeType = view === AppView.CONVERT ? 'image/jpeg' : 'application/pdf';
+            const url = URL.createObjectURL(new Blob([b], { type: mimeType }));
             const a = document.createElement('a'); 
             a.href = url; 
             a.download = `${activeFile.name.replace('.pdf','')}_part_${i+1}.${view === AppView.CONVERT ? 'jpg' : 'pdf'}`; 
@@ -402,7 +402,6 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
 
   return (
     <div className="flex h-full bg-slate-50 overflow-hidden relative">
-      {/* Sidebar Staged Files - Desktop Only */}
       <div className="w-72 bg-white border-r hidden xl:flex flex-col shadow-sm">
         <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Workspace</span>
@@ -445,7 +444,6 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50/30">
-        {/* Main Toolbar - Scrollable on mobile */}
         <div className="h-14 md:h-20 bg-white/90 backdrop-blur-xl border-b px-3 md:px-10 flex items-center justify-between sticky top-0 z-40 shadow-sm overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 md:gap-6 flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-4">
@@ -494,6 +492,8 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
                 
                 {view === AppView.MERGE && <button onClick={() => handleAction(() => mergePDFs(files.map(f => f.file)))} className="px-3 md:px-6 py-1.5 md:py-3 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl shadow-lg">Merge</button>}
 
+                {view === AppView.CONVERT && <button onClick={() => handleAction(() => convertToImages(activeFile.file))} className="px-3 md:px-6 py-1.5 md:py-3 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl shadow-lg">Convert to JPG</button>}
+
                 <button 
                   onClick={() => { const url = URL.createObjectURL(activeFile.file); const a = document.createElement('a'); a.href = url; a.download = activeFile.name; a.click(); }}
                   className="px-3 md:px-6 py-1.5 md:py-3 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl flex items-center gap-1 md:gap-2 shadow-lg"
@@ -505,12 +505,10 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
           </div>
         </div>
 
-        {/* Canvas Area - Tighter padding for mobile */}
         <div className="flex-1 overflow-y-auto p-4 md:p-12 custom-scrollbar flex flex-col items-center">
           {processing && (
             <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-[80] flex flex-col items-center justify-center animate-in fade-in">
               <div className="p-6 md:p-10 bg-white rounded-[2rem] shadow-2xl flex flex-col items-center gap-4 text-center mx-6">
-                {/* Combined duplicate className attributes into one */}
                 <Loader2 className="animate-spin text-blue-600 md:w-14 md:h-14" size={40} />
                 <h4 className="font-black text-sm md:text-xl text-slate-800 uppercase tracking-widest">Processing...</h4>
               </div>
