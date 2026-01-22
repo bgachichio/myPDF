@@ -5,9 +5,6 @@ import {
   Download, 
   RotateCw, 
   Minimize2, 
-  FileStack, 
-  Scissors, 
-  Image as ImageIcon, 
   Trash2, 
   Edit2,
   Check,
@@ -17,7 +14,6 @@ import {
   ZoomIn,
   ZoomOut,
   PenTool,
-  Eraser,
   Undo2,
   Redo2,
   Loader2,
@@ -87,7 +83,7 @@ const PDFPage: React.FC<{
 
         if (context) {
           context.scale(dpr, dpr);
-          renderTask = page.render({ canvasContext: context, viewport });
+          renderTask = page.render({ canvasContext: context, viewport, canvas });
           await renderTask.promise;
         }
       } catch (e) {}
@@ -373,7 +369,6 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
       if (res.success && res.data) {
         if (Array.isArray(res.data)) {
           res.data.forEach((b: any, i: number) => {
-            // Fix: Specify the correct MIME type for the Blob based on the current view
             const mimeType = view === AppView.CONVERT ? 'image/jpeg' : 'application/pdf';
             const url = URL.createObjectURL(new Blob([b], { type: mimeType }));
             const a = document.createElement('a'); 
@@ -402,12 +397,14 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
 
   return (
     <div className="flex h-full bg-slate-50 overflow-hidden relative">
+      {/* Desktop Workspace Sidebar */}
       <div className="w-72 bg-white border-r hidden xl:flex flex-col shadow-sm">
         <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Workspace</span>
           <button 
             onClick={() => document.getElementById('up')?.click()} 
             className="p-1.5 hover:bg-blue-600 hover:text-white text-blue-600 rounded-lg transition-all shadow-sm bg-white border border-blue-100"
+            title="Upload More"
           >
             <Plus size={18}/>
           </button>
@@ -444,6 +441,7 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50/30">
+        {/* Main Toolbar */}
         <div className="h-14 md:h-20 bg-white/90 backdrop-blur-xl border-b px-3 md:px-10 flex items-center justify-between sticky top-0 z-40 shadow-sm overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2 md:gap-6 flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-4">
@@ -469,28 +467,28 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
             <div className="h-6 md:h-8 w-[1px] bg-slate-200" />
 
             <div className="flex items-center gap-0.5 md:gap-1 bg-slate-100 p-0.5 md:p-1 rounded-lg md:rounded-xl">
-              <button onClick={() => setScale(s => Math.max(0.3, s - 0.1))} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600"><ZoomOut size={14} className="md:w-4 md:h-4"/></button>
+              <button onClick={() => setScale(s => Math.max(0.3, s - 0.1))} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600" title="Zoom Out"><ZoomOut size={14} className="md:w-4 md:h-4"/></button>
               <span className="text-[8px] md:text-[10px] font-black w-8 md:w-12 text-center text-slate-500 uppercase">{Math.round(scale*100)}%</span>
-              <button onClick={() => setScale(s => Math.min(2.5, s + 0.1))} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600"><ZoomIn size={14} className="md:w-4 md:h-4"/></button>
+              <button onClick={() => setScale(s => Math.min(2.5, s + 0.1))} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600" title="Zoom In"><ZoomIn size={14} className="md:w-4 md:h-4"/></button>
             </div>
 
             <div className="flex items-center gap-0.5 md:gap-1 bg-slate-100 p-0.5 md:p-1 rounded-lg md:rounded-xl">
-              <button onClick={handleUndo} disabled={!currentHistory || currentHistory.past.length === 0} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600 disabled:opacity-30"><Undo2 size={14} className="md:w-4 md:h-4"/></button>
-              <button onClick={handleRedo} disabled={!currentHistory || currentHistory.future.length === 0} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600 disabled:opacity-30"><Redo2 size={14} className="md:w-4 md:h-4"/></button>
+              <button onClick={handleUndo} disabled={!currentHistory || currentHistory.past.length === 0} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600 disabled:opacity-30" title="Undo"><Undo2 size={14} className="md:w-4 md:h-4"/></button>
+              <button onClick={handleRedo} disabled={!currentHistory || currentHistory.future.length === 0} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600 disabled:opacity-30" title="Redo"><Redo2 size={14} className="md:w-4 md:h-4"/></button>
             </div>
           </div>
 
           <div className="flex items-center gap-1 md:gap-3 flex-shrink-0 ml-4">
             {activeFile && (
               <>
-                <button onClick={() => handleAction(() => rotatePDF(activeFile.file, 90))} className="p-1.5 md:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg md:rounded-xl"><RotateCw size={14} className="md:w-[18px] md:h-[18px]"/></button>
-                <button onClick={() => handleAction(() => compressPDF(activeFile.file))} className="p-1.5 md:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg md:rounded-xl"><Minimize2 size={14} className="md:w-[18px] md:h-[18px]"/></button>
+                <button onClick={() => handleAction(() => rotatePDF(activeFile.file, 90))} className="p-1.5 md:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg md:rounded-xl" title="Rotate 90°"><RotateCw size={14} className="md:w-[18px] md:h-[18px]"/></button>
+                <button onClick={() => handleAction(() => compressPDF(activeFile.file))} className="p-1.5 md:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg md:rounded-xl" title="Compress"><Minimize2 size={14} className="md:w-[18px] md:h-[18px]"/></button>
                 
                 {view === AppView.SPLIT && (
                   <button onClick={() => handleAction(() => splitPDF(activeFile.file, Array.from(selectedPages).sort()))} disabled={selectedPages.size === 0} className="px-3 md:px-6 py-1.5 md:py-3 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl shadow-lg disabled:opacity-50">Split {selectedPages.size}</button>
                 )}
                 
-                {view === AppView.MERGE && <button onClick={() => handleAction(() => mergePDFs(files.map(f => f.file)))} className="px-3 md:px-6 py-1.5 md:py-3 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl shadow-lg">Merge</button>}
+                {view === AppView.MERGE && <button onClick={() => handleAction(() => mergePDFs(files.map(f => f.file)))} className="px-3 md:px-6 py-1.5 md:py-3 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl shadow-lg">Merge All</button>}
 
                 {view === AppView.CONVERT && <button onClick={() => handleAction(() => convertToImages(activeFile.file))} className="px-3 md:px-6 py-1.5 md:py-3 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl shadow-lg">Convert to JPG</button>}
 
@@ -498,12 +496,35 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
                   onClick={() => { const url = URL.createObjectURL(activeFile.file); const a = document.createElement('a'); a.href = url; a.download = activeFile.name; a.click(); }}
                   className="px-3 md:px-6 py-1.5 md:py-3 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl flex items-center gap-1 md:gap-2 shadow-lg"
                 >
-                  <Download size={14} className="md:w-4 md:h-4"/> <span className="hidden sm:inline">Save</span>
+                  <Download size={14} className="md:w-4 md:h-4"/> <span className="hidden sm:inline">Download</span>
                 </button>
               </>
             )}
           </div>
         </div>
+
+        {/* Mobile File Switcher (Horizontal scrollable workspace) */}
+        {files.length > 0 && (
+          <div className="xl:hidden bg-white border-b overflow-x-auto no-scrollbar py-2 px-3 flex gap-2">
+            {files.map(f => (
+              <button 
+                key={f.id} 
+                onClick={() => onActiveFileChange(f.id)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full border flex items-center gap-2 transition-all ${activeFile?.id === f.id ? 'bg-blue-600 border-blue-600 text-white font-bold shadow-md' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-white'}`}
+              >
+                <FileText size={12} />
+                <span className="text-[10px] truncate max-w-[80px]">{f.name}</span>
+              </button>
+            ))}
+            <button 
+              onClick={() => document.getElementById('up-mob')?.click()}
+              className="flex-shrink-0 w-8 h-8 rounded-full border border-slate-200 bg-white flex items-center justify-center text-blue-600 hover:bg-blue-50"
+            >
+              <Plus size={14} />
+            </button>
+            <input id="up-mob" type="file" className="hidden" multiple accept=".pdf" onChange={e => e.target.files && onUploadMore(Array.from(e.target.files))} />
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto p-4 md:p-12 custom-scrollbar flex flex-col items-center">
           {processing && (
@@ -537,12 +558,12 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
               ))}
             </div>
           ) : (
-            <div className="mt-20 md:mt-32 text-center max-w-sm px-6">
+            <div className="mt-10 md:mt-32 text-center max-w-sm px-6">
               <div className="p-6 md:p-10 bg-white rounded-[2rem] md:rounded-[3rem] shadow-inner mb-6 md:mb-8 border border-slate-100">
                 <FileSearch size={48} className="md:w-[72px] md:h-[72px] mx-auto text-slate-200" strokeWidth={1} />
               </div>
               <h3 className="text-lg md:text-2xl font-black text-slate-800 mb-2 md:mb-4 uppercase tracking-tighter">Workspace Empty</h3>
-              <p className="text-slate-500 font-medium text-xs md:text-sm leading-relaxed">Select a document or upload a new one to begin editing.</p>
+              <p className="text-slate-500 font-medium text-xs md:text-sm leading-relaxed">Select a document from the workspace or upload a new one to begin.</p>
             </div>
           )}
         </div>
