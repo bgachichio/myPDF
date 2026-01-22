@@ -20,28 +20,28 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUpload }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white overflow-y-auto custom-scrollbar">
-      <div className="max-w-3xl w-full">
-        <div className="mb-8 inline-flex items-center justify-center p-4 bg-blue-50 text-blue-600 rounded-full animate-pulse">
-          <Upload size={48} />
+    <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 text-center bg-white overflow-y-auto custom-scrollbar">
+      <div className="max-w-3xl w-full py-10 md:py-0">
+        <div className="mb-6 md:mb-8 inline-flex items-center justify-center p-4 bg-blue-50 text-blue-600 rounded-full animate-pulse">
+          <Upload size={40} className="md:w-12 md:h-12" />
         </div>
         
-        <h2 className="text-5xl font-extrabold text-gray-900 mb-6 tracking-tight">
+        <h2 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4 md:mb-6 tracking-tight leading-tight px-4">
           Safe, Quick, and Private <br /><span className="text-blue-600">PDF Editing</span>
         </h2>
         
-        <p className="text-xl text-gray-500 mb-10 leading-relaxed max-w-xl mx-auto font-medium">
+        <p className="text-base md:text-xl text-gray-500 mb-8 md:mb-10 leading-relaxed max-w-xl mx-auto font-medium px-4">
           Your files never leave your browser. Merge, split, compress, and edit PDFs with zero privacy risk.
         </p>
 
         <div className="flex flex-col items-center gap-4">
           <button 
             onClick={triggerUpload}
-            className="px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-xl shadow-blue-200 transition-all transform hover:-translate-y-1 active:scale-95 text-lg"
+            className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-xl shadow-blue-100 transition-all transform hover:-translate-y-1 active:scale-95 text-base md:text-lg"
           >
             Upload your PDF
           </button>
-          <p className="text-sm text-gray-400 font-medium tracking-tight">Supported formats: .pdf</p>
+          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Supported: .pdf</p>
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -52,21 +52,24 @@ const LandingPage: React.FC<LandingPageProps> = ({ onUpload }) => {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
-          <div className="p-8 rounded-[2rem] border border-gray-100 bg-gray-50/50 transition-all hover:shadow-md">
-            <Shield className="mx-auto mb-4 text-blue-600" size={32} />
-            <h3 className="font-bold text-lg mb-2 text-gray-900">100% Private</h3>
-            <p className="text-gray-500 text-sm leading-relaxed">Processing happens locally in your browser. No data is sent to any server.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8 mt-16 md:mt-20 px-4">
+          <div className="p-6 md:p-8 rounded-[2rem] border border-gray-100 bg-gray-50/50 transition-all hover:shadow-md">
+            {/* Combined duplicate className attributes into one */}
+            <Shield className="mx-auto mb-3 md:mb-4 text-blue-600 md:w-8 md:h-8" size={24} />
+            <h3 className="font-bold text-base md:text-lg mb-1 md:mb-2 text-gray-900">100% Private</h3>
+            <p className="text-gray-500 text-xs md:text-sm leading-relaxed">Local browser processing. No data is sent to servers.</p>
           </div>
-          <div className="p-8 rounded-[2rem] border border-gray-100 bg-gray-50/50 transition-all hover:shadow-md">
-            <Zap className="mx-auto mb-4 text-blue-600" size={32} />
-            <h3 className="font-bold text-lg mb-2 text-gray-900">Lightning Fast</h3>
-            <p className="text-gray-500 text-sm leading-relaxed">Instant processing without upload/download lag. Powered by modern web standards.</p>
+          <div className="p-6 md:p-8 rounded-[2rem] border border-gray-100 bg-gray-50/50 transition-all hover:shadow-md">
+            {/* Combined duplicate className attributes into one */}
+            <Zap className="mx-auto mb-3 md:mb-4 text-blue-600 md:w-8 md:h-8" size={24} />
+            <h3 className="font-bold text-base md:text-lg mb-1 md:mb-2 text-gray-900">Lightning Fast</h3>
+            <p className="text-gray-500 text-xs md:text-sm leading-relaxed">No upload lag. Powered by modern web standards.</p>
           </div>
-          <div className="p-8 rounded-[2rem] border border-gray-100 bg-gray-50/50 transition-all hover:shadow-md">
-            <FileCode className="mx-auto mb-4 text-blue-600" size={32} />
-            <h3 className="font-bold text-lg mb-2 text-gray-900">Fully Featured</h3>
-            <p className="text-gray-500 text-sm leading-relaxed">Rotate, Merge, Split, Compress, and Rename tools all in one workspace.</p>
+          <div className="p-6 md:p-8 rounded-[2rem] border border-gray-100 bg-gray-50/50 transition-all hover:shadow-md">
+            {/* Combined duplicate className attributes into one */}
+            <FileCode className="mx-auto mb-3 md:mb-4 text-blue-600 md:w-8 md:h-8" size={24} />
+            <h3 className="font-bold text-base md:text-lg mb-1 md:mb-2 text-gray-900">Fully Featured</h3>
+            <p className="text-gray-500 text-xs md:text-sm leading-relaxed">Merge, Split, Compress, and Rename in one workspace.</p>
           </div>
         </div>
       </div>

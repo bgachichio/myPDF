@@ -27,7 +27,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Cleanup Blob URLs to prevent memory leaks
   useEffect(() => {
     return () => {
       files.forEach(f => {
@@ -47,17 +46,17 @@ const App: React.FC = () => {
   const activeFile = files.find(f => f.id === activeFileId);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 overflow-hidden relative font-inter">
-      {/* Support Banner - Non-obstructive positioning */}
-      <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[60] flex items-center gap-3 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full border border-slate-200 shadow-xl transition-all hover:scale-105 hover:shadow-2xl">
-        <span className="text-[11px] font-bold text-slate-600 tracking-tight flex items-center gap-1.5 whitespace-nowrap">
-          Made with <Heart size={12} className="text-red-500 fill-red-500" /> by Brian
+    <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 text-slate-900 overflow-hidden relative font-inter">
+      {/* Support Banner - Responsive Positioning */}
+      <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[60] flex items-center gap-3 bg-white/90 backdrop-blur-md px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-slate-200 shadow-xl transition-all hover:scale-105">
+        <span className="text-[10px] md:text-[11px] font-bold text-slate-600 tracking-tight flex items-center gap-1.5 whitespace-nowrap">
+          Made with <Heart size={10} className="text-red-500 fill-red-500" /> by Brian
         </span>
         <a 
           href="https://paystack.shop/pay/gachichio" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-1 md:py-1.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm"
         >
           support <ExternalLink size={10} />
         </a>
@@ -69,7 +68,7 @@ const App: React.FC = () => {
         hasFiles={files.length > 0} 
       />
 
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="flex-1 flex flex-col h-[calc(100vh-64px)] md:h-screen overflow-hidden">
         {currentView === AppView.LANDING ? (
           <LandingPage onUpload={handleFileUpload} />
         ) : (

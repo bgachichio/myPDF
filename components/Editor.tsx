@@ -133,7 +133,7 @@ const PDFPage: React.FC<{
 
   return (
     <div 
-      className={`bg-white shadow-2xl rounded-xl mb-8 border relative group transition-all duration-300 ${isSignMode || isSplitMode ? 'cursor-crosshair' : 'border-slate-200'} ${isSelected ? 'ring-8 ring-blue-500/20' : ''}`}
+      className={`bg-white shadow-2xl rounded-xl mb-6 md:mb-8 border relative group transition-all duration-300 ${isSignMode || isSplitMode ? 'cursor-crosshair' : 'border-slate-200'} ${isSelected ? 'ring-4 md:ring-8 ring-blue-500/20' : ''}`}
       onClick={(e) => {
         if (isSignMode && !stagedSignature) {
           const rect = canvasRef.current!.getBoundingClientRect();
@@ -141,14 +141,16 @@ const PDFPage: React.FC<{
         } else if (isSplitMode) onToggleSelect(pageNum - 1);
       }}
     >
-      <canvas ref={canvasRef} className="mx-auto block rounded-xl" />
+      <canvas ref={canvasRef} className="mx-auto block rounded-xl max-w-full" />
       
       {isSplitMode && (
-        <div className="absolute top-4 right-4 bg-white rounded-full p-2 shadow-xl border border-slate-100 transition-transform active:scale-90 cursor-pointer">
+        <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-white rounded-full p-1.5 md:p-2 shadow-xl border border-slate-100 transition-transform active:scale-90 cursor-pointer">
           {isSelected ? (
-            <CheckCircle2 className="text-blue-600" size={28} />
+            /* Combined duplicate className attributes into one */
+            <CheckCircle2 className="text-blue-600 md:w-7 md:h-7" size={24} />
           ) : (
-            <Circle className="text-slate-200" size={28} />
+            /* Combined duplicate className attributes into one */
+            <Circle className="text-slate-200 md:w-7 md:h-7" size={24} />
           )}
         </div>
       )}
@@ -173,35 +175,35 @@ const PDFPage: React.FC<{
             onMouseDown={(e) => setDragState({ type: 'move', startX: e.clientX, startY: e.clientY, initialX: stagedSignature.x, initialY: stagedSignature.y })}
             onTouchStart={(e) => setDragState({ type: 'move', startX: e.touches[0].clientX, startY: e.touches[0].clientY, initialX: stagedSignature.x, initialY: stagedSignature.y })}
           >
-            <MousePointer2 size={16} className="text-blue-600" />
+            <MousePointer2 size={14} className="text-blue-600" />
           </div>
 
           <div 
-            className="absolute -right-3 -bottom-3 w-7 h-7 bg-blue-600 rounded-full cursor-nwse-resize flex items-center justify-center text-white shadow-lg border-2 border-white hover:scale-110 transition-transform"
+            className="absolute -right-3 -bottom-3 w-6 h-6 md:w-7 md:h-7 bg-blue-600 rounded-full cursor-nwse-resize flex items-center justify-center text-white shadow-lg border-2 border-white hover:scale-110 transition-transform"
             onMouseDown={(e) => { e.stopPropagation(); setDragState({ type: 'resize', startX: e.clientX, startY: e.clientY, initialW: stagedSignature.width, initialH: stagedSignature.height }); }}
             onTouchStart={(e) => { e.stopPropagation(); setDragState({ type: 'resize', startX: e.touches[0].clientX, startY: e.touches[0].clientY, initialW: stagedSignature.width, initialH: stagedSignature.height }); }}
           >
-            <MoveDiagonal size={14} />
+            <MoveDiagonal size={12} className="md:w-3.5 md:h-3.5" />
           </div>
 
-          <div className="absolute -top-14 left-1/2 -translate-x-1/2 flex items-center bg-slate-900 text-white rounded-xl p-1 gap-1 shadow-2xl animate-in fade-in slide-in-from-bottom-2">
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center bg-slate-900 text-white rounded-xl p-0.5 md:p-1 gap-1 shadow-2xl">
             <button 
               onClick={(e) => { e.stopPropagation(); onConfirmSignature(); }} 
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-2 text-xs font-black uppercase tracking-wider"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider"
             >
-              <Check size={14} /> Apply
+              <Check size={12} /> OK
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); onCancelStaged(); }} 
-              className="p-2 hover:bg-white/10 text-slate-400 rounded-lg"
+              className="p-1.5 hover:bg-white/10 text-slate-400 rounded-lg"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
         </div>
       )}
       
-      <div className="absolute bottom-4 left-4 bg-slate-900/40 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute bottom-2 right-2 md:bottom-4 md:left-4 bg-slate-900/40 backdrop-blur-md px-2 py-0.5 md:px-3 md:py-1 rounded-full text-[9px] md:text-[10px] font-black text-white uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
         Page {pageNum}
       </div>
     </div>
@@ -240,13 +242,13 @@ const SignaturePad: React.FC<any> = ({ onSave, onCancel }) => {
   };
 
   return (
-    <div className="bg-white p-8 rounded-[2.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] max-w-xl w-full border border-slate-100 animate-in zoom-in-95 duration-200">
-      <div className="flex justify-between items-center mb-8">
-        <h3 className="font-black text-2xl tracking-tight text-slate-800">Add Signature</h3>
-        <button onClick={onCancel} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><X size={24} /></button>
+    <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl max-w-xl w-full border border-slate-100 animate-in zoom-in-95 duration-200 mx-4">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="font-black text-xl md:text-2xl tracking-tight text-slate-800">Add Signature</h3>
+        <button onClick={onCancel} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><X size={20} /></button>
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 md:gap-6">
         <div className="relative group">
           <canvas 
             ref={canvasRef} 
@@ -261,26 +263,25 @@ const SignaturePad: React.FC<any> = ({ onSave, onCancel }) => {
             onTouchEnd={() => setDrawing(false)}
           />
           {!hasDrawn && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-slate-300 gap-2">
-              <PenTool size={32} strokeWidth={1.5} />
-              <p className="text-sm font-bold uppercase tracking-widest">Draw here</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-slate-300 gap-1 md:gap-2">
+              <PenTool size={24} className="md:w-8 md:h-8" />
+              <p className="text-[10px] md:text-sm font-bold uppercase tracking-widest">Draw here</p>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
           <button 
             onClick={() => { canvasRef.current?.getContext('2d')?.clearRect(0,0,500,200); setHasDrawn(false); }} 
-            className="px-6 py-3 font-black text-xs uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+            className="w-full sm:w-auto px-4 py-2 font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
           >
-            Clear Drawing
+            Reset
           </button>
-          <div className="h-4 w-[1px] bg-slate-200" />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="flex-1 px-6 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-sm text-slate-700 transition-all flex items-center justify-center gap-2"
+            className="w-full flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-700 transition-all flex items-center justify-center gap-2"
           >
-            <UploadIcon size={16} /> Upload Signature Image
+            <UploadIcon size={14} /> Upload Image
           </button>
           <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
         </div>
@@ -288,9 +289,9 @@ const SignaturePad: React.FC<any> = ({ onSave, onCancel }) => {
         <button 
           onClick={() => hasDrawn && onSave(canvasRef.current!.toDataURL())} 
           disabled={!hasDrawn}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-100 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-lg uppercase tracking-wider"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 md:py-5 rounded-2xl shadow-xl shadow-blue-100 transition-all active:scale-95 disabled:opacity-50 text-base md:text-lg uppercase tracking-wider"
         >
-          Confirm Signature
+          Confirm
         </button>
       </div>
     </div>
@@ -337,11 +338,9 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
     if (!activeFile) return;
     const h = history[activeFile.id];
     if (!h || h.past.length === 0) return;
-    
     const last = h.past[h.past.length - 1];
     const newPast = h.past.slice(0, -1);
     const newFuture = [activeFile.file, ...h.future];
-    
     setHistory({ ...history, [activeFile.id]: { past: newPast, future: newFuture } });
     const newFile = new File([last], activeFile.name, { type: 'application/pdf' });
     onFilesChange(files.map(f => f.id === activeFile.id ? { ...f, file: newFile, previewUrl: URL.createObjectURL(newFile) } : f));
@@ -351,11 +350,9 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
     if (!activeFile) return;
     const h = history[activeFile.id];
     if (!h || h.future.length === 0) return;
-    
     const next = h.future[0];
     const newFuture = h.future.slice(1);
     const newPast = [...h.past, activeFile.file];
-    
     setHistory({ ...history, [activeFile.id]: { past: newPast, future: newFuture } });
     const newFile = new File([next], activeFile.name, { type: 'application/pdf' });
     onFilesChange(files.map(f => f.id === activeFile.id ? { ...f, file: newFile, previewUrl: URL.createObjectURL(newFile) } : f));
@@ -390,9 +387,7 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
           onFilesChange(files.map(f => f.id === activeFile.id ? { ...f, file: newFile, previewUrl: URL.createObjectURL(newFile) } : f));
         }
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
     setProcessing(false);
   };
 
@@ -406,9 +401,9 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
   const currentHistory = activeFile ? history[activeFile.id] : null;
 
   return (
-    <div className="flex h-full bg-slate-50 overflow-hidden">
-      {/* Sidebar Staged Files */}
-      <div className="w-72 bg-white border-r hidden xl:flex flex-col shadow-[1px_0_0_0_rgba(0,0,0,0.05)]">
+    <div className="flex h-full bg-slate-50 overflow-hidden relative">
+      {/* Sidebar Staged Files - Desktop Only */}
+      <div className="w-72 bg-white border-r hidden xl:flex flex-col shadow-sm">
         <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
           <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Workspace</span>
           <button 
@@ -424,7 +419,7 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
             <div 
               key={f.id} 
               onClick={() => onActiveFileChange(f.id)} 
-              className={`p-4 rounded-2xl cursor-pointer group transition-all duration-300 border-2 ${activeFile?.id === f.id ? 'bg-blue-50 border-blue-600/10 shadow-lg scale-[1.02]' : 'hover:bg-slate-50 border-transparent'}`}
+              className={`p-4 rounded-2xl cursor-pointer group transition-all border-2 ${activeFile?.id === f.id ? 'bg-blue-50 border-blue-600/10 shadow-lg scale-[1.02]' : 'hover:bg-slate-50 border-transparent'}`}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 overflow-hidden">
@@ -436,131 +431,98 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
                     <span className="text-[10px] font-black text-slate-400">{(f.size / 1024).toFixed(0)} KB</span>
                   </div>
                 </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onFilesChange(files.filter(x => x.id !== f.id)); if (activeFile?.id === f.id) onActiveFileChange(null); }} 
-                  className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                >
-                  <Trash2 size={16}/>
-                </button>
+                <button onClick={(e) => { e.stopPropagation(); onFilesChange(files.filter(x => x.id !== f.id)); if (activeFile?.id === f.id) onActiveFileChange(null); }} className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-red-500 rounded-lg"><Trash2 size={16}/></button>
               </div>
             </div>
           ))}
           {files.length === 0 && (
             <div className="py-20 text-center px-6">
               <FileSearch size={40} className="mx-auto mb-4 text-slate-200" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">No documents staged.<br/>Upload one to start.</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">No documents.<br/>Upload to start.</p>
             </div>
           )}
         </div>
       </div>
 
       <div className="flex-1 flex flex-col min-w-0 bg-slate-50/30">
-        {/* Main Toolbar */}
-        <div className="h-20 bg-white/80 backdrop-blur-xl border-b px-6 md:px-10 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4">
+        {/* Main Toolbar - Scrollable on mobile */}
+        <div className="h-14 md:h-20 bg-white/90 backdrop-blur-xl border-b px-3 md:px-10 flex items-center justify-between sticky top-0 z-40 shadow-sm overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 md:gap-6 flex-shrink-0">
+            <div className="flex items-center gap-2 md:gap-4">
               {isRenaming ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 md:gap-2">
                   <input 
                     value={tempName} 
                     onChange={e => setTempName(e.target.value)} 
-                    className="px-3 py-2 bg-slate-100 border-2 border-blue-500 rounded-xl font-bold focus:outline-none w-48"
+                    className="px-2 py-1 md:px-3 md:py-2 bg-slate-100 border-2 border-blue-500 rounded-lg md:rounded-xl font-bold focus:outline-none w-24 md:w-48 text-xs md:text-sm"
                     autoFocus
                     onKeyDown={e => e.key === 'Enter' && handleRename()}
                   />
-                  <button onClick={handleRename} className="p-2 bg-blue-600 text-white rounded-xl"><Check size={18} /></button>
+                  <button onClick={handleRename} className="p-1 md:p-2 bg-blue-600 text-white rounded-lg"><Check size={16} /></button>
                 </div>
               ) : (
-                <div className="flex items-center gap-3 group cursor-pointer" onClick={() => activeFile && setIsRenaming(true)}>
-                  <h2 className="font-black text-xl tracking-tight text-slate-800 truncate max-w-[120px] md:max-w-[300px]">{activeFile?.name || 'My Workspace'}</h2>
-                  {activeFile && <Edit2 size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                <div className="flex items-center gap-1 md:gap-3 group cursor-pointer" onClick={() => activeFile && setIsRenaming(true)}>
+                  <h2 className="font-black text-xs md:text-xl tracking-tight text-slate-800 truncate max-w-[80px] md:max-w-[300px]">{activeFile?.name || 'Workspace'}</h2>
+                  {activeFile && <Edit2 size={12} className="text-slate-300 md:opacity-0 md:group-hover:opacity-100" />}
                 </div>
               )}
             </div>
             
-            <div className="h-8 w-[1px] bg-slate-200 hidden md:block" />
+            <div className="h-6 md:h-8 w-[1px] bg-slate-200" />
 
-            <div className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-              <button onClick={() => setScale(s => Math.max(0.4, s - 0.1))} className="p-2 hover:bg-white rounded-lg transition-all text-slate-600"><ZoomOut size={16}/></button>
-              <span className="text-[10px] font-black w-12 text-center text-slate-500 uppercase">{Math.round(scale*100)}%</span>
-              <button onClick={() => setScale(s => Math.min(2.5, s + 0.1))} className="p-2 hover:bg-white rounded-lg transition-all text-slate-600"><ZoomIn size={16}/></button>
+            <div className="flex items-center gap-0.5 md:gap-1 bg-slate-100 p-0.5 md:p-1 rounded-lg md:rounded-xl">
+              <button onClick={() => setScale(s => Math.max(0.3, s - 0.1))} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600"><ZoomOut size={14} className="md:w-4 md:h-4"/></button>
+              <span className="text-[8px] md:text-[10px] font-black w-8 md:w-12 text-center text-slate-500 uppercase">{Math.round(scale*100)}%</span>
+              <button onClick={() => setScale(s => Math.min(2.5, s + 0.1))} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600"><ZoomIn size={14} className="md:w-4 md:h-4"/></button>
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-              <button 
-                onClick={handleUndo} 
-                disabled={!currentHistory || currentHistory.past.length === 0}
-                className="p-2 hover:bg-white rounded-lg transition-all text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Undo2 size={16}/>
-              </button>
-              <button 
-                onClick={handleRedo} 
-                disabled={!currentHistory || currentHistory.future.length === 0}
-                className="p-2 hover:bg-white rounded-lg transition-all text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Redo2 size={16}/>
-              </button>
+            <div className="flex items-center gap-0.5 md:gap-1 bg-slate-100 p-0.5 md:p-1 rounded-lg md:rounded-xl">
+              <button onClick={handleUndo} disabled={!currentHistory || currentHistory.past.length === 0} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600 disabled:opacity-30"><Undo2 size={14} className="md:w-4 md:h-4"/></button>
+              <button onClick={handleRedo} disabled={!currentHistory || currentHistory.future.length === 0} className="p-1 md:p-2 hover:bg-white rounded-md md:rounded-lg text-slate-600 disabled:opacity-30"><Redo2 size={14} className="md:w-4 md:h-4"/></button>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 md:gap-3 flex-shrink-0 ml-4">
             {activeFile && (
               <>
-                <div className="hidden md:flex items-center gap-2">
-                  <button onClick={() => handleAction(() => rotatePDF(activeFile.file, 90))} className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all" title="Rotate"><RotateCw size={18}/></button>
-                  <button onClick={() => handleAction(() => compressPDF(activeFile.file))} className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all" title="Compress"><Minimize2 size={18}/></button>
-                </div>
+                <button onClick={() => handleAction(() => rotatePDF(activeFile.file, 90))} className="p-1.5 md:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg md:rounded-xl"><RotateCw size={14} className="md:w-[18px] md:h-[18px]"/></button>
+                <button onClick={() => handleAction(() => compressPDF(activeFile.file))} className="p-1.5 md:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg md:rounded-xl"><Minimize2 size={14} className="md:w-[18px] md:h-[18px]"/></button>
                 
                 {view === AppView.SPLIT && (
-                  <button 
-                    onClick={() => handleAction(() => splitPDF(activeFile.file, Array.from(selectedPages).sort()))} 
-                    disabled={selectedPages.size === 0}
-                    className="px-6 py-3 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-xl shadow-blue-100 active:scale-95 transition-all disabled:opacity-50"
-                  >
-                    Extract {selectedPages.size} Pages
-                  </button>
+                  <button onClick={() => handleAction(() => splitPDF(activeFile.file, Array.from(selectedPages).sort()))} disabled={selectedPages.size === 0} className="px-3 md:px-6 py-1.5 md:py-3 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl shadow-lg disabled:opacity-50">Split {selectedPages.size}</button>
                 )}
-
-                {view === AppView.MERGE && (
-                  <button onClick={() => handleAction(() => mergePDFs(files.map(f => f.file)))} className="px-6 py-3 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-xl shadow-blue-100">Merge All</button>
-                )}
-
-                {view === AppView.CONVERT && (
-                  <button onClick={() => handleAction(() => convertToImages(activeFile.file))} className="px-6 py-3 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-xl shadow-blue-100">Convert to JPG</button>
-                )}
+                
+                {view === AppView.MERGE && <button onClick={() => handleAction(() => mergePDFs(files.map(f => f.file)))} className="px-3 md:px-6 py-1.5 md:py-3 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl shadow-lg">Merge</button>}
 
                 <button 
                   onClick={() => { const url = URL.createObjectURL(activeFile.file); const a = document.createElement('a'); a.href = url; a.download = activeFile.name; a.click(); }}
-                  className="px-6 py-3 bg-slate-900 text-white font-black text-xs uppercase tracking-widest rounded-xl flex items-center gap-2 hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+                  className="px-3 md:px-6 py-1.5 md:py-3 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-lg md:rounded-xl flex items-center gap-1 md:gap-2 shadow-lg"
                 >
-                  <Download size={16}/> <span className="hidden sm:inline">Download</span>
+                  <Download size={14} className="md:w-4 md:h-4"/> <span className="hidden sm:inline">Save</span>
                 </button>
               </>
             )}
           </div>
         </div>
 
-        {/* Canvas Area */}
-        <div className="flex-1 overflow-y-auto md:p-12 p-6 custom-scrollbar flex flex-col items-center">
+        {/* Canvas Area - Tighter padding for mobile */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-12 custom-scrollbar flex flex-col items-center">
           {processing && (
-            <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-[60] flex flex-col items-center justify-center gap-6 animate-in fade-in duration-300">
-              <div className="p-8 bg-white rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 border border-slate-100 text-center">
-                <Loader2 className="animate-spin text-blue-600" size={56} />
-                <div>
-                  <h4 className="font-black text-xl text-slate-800 mb-2">Processing Locally</h4>
-                  <p className="text-slate-500 font-medium text-sm">Securing your document in your browser...</p>
-                </div>
+            <div className="fixed inset-0 bg-white/60 backdrop-blur-md z-[80] flex flex-col items-center justify-center animate-in fade-in">
+              <div className="p-6 md:p-10 bg-white rounded-[2rem] shadow-2xl flex flex-col items-center gap-4 text-center mx-6">
+                {/* Combined duplicate className attributes into one */}
+                <Loader2 className="animate-spin text-blue-600 md:w-14 md:h-14" size={40} />
+                <h4 className="font-black text-sm md:text-xl text-slate-800 uppercase tracking-widest">Processing...</h4>
               </div>
             </div>
           )}
 
           {pdf ? (
-            <div className="max-w-full inline-block animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="max-w-full inline-block">
               {view === AppView.SIGN && !stagedSignature && (
-                <div className="mb-10 p-6 bg-blue-600 rounded-[2rem] text-white shadow-2xl flex items-center justify-center gap-4 animate-bounce">
-                  <PenTool size={24} />
-                  <p className="font-black text-sm uppercase tracking-widest">Click anywhere on the document to sign</p>
+                <div className="mb-6 p-4 bg-blue-600 rounded-2xl text-white shadow-xl flex items-center justify-center gap-3 animate-bounce max-w-xs mx-auto text-center">
+                  <PenTool size={18} />
+                  <p className="font-black text-[10px] uppercase tracking-widest leading-tight">Tap where you want to place signature</p>
                 </div>
               )}
               {Array.from({ length: numPages }).map((_, i) => (
@@ -569,7 +531,7 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
                   isSignMode={view === AppView.SIGN} isSplitMode={view === AppView.SPLIT} 
                   isSelected={selectedPages.has(i)} onToggleSelect={idx => setSelectedPages(p => { const s = new Set(p); if(s.has(idx)) s.delete(idx); else s.add(idx); return s; })}
                   stagedSignature={stagedSignature?.pageNum === i+1 ? stagedSignature : null}
-                  onSignAt={(p, x, y) => { setStagedSignature({ pageNum: p, x, y, width: 160, height: 60, dataUrl: '' }); setShowSignPad(true); }}
+                  onSignAt={(p, x, y) => { setStagedSignature({ pageNum: p, x, y, width: 140, height: 50, dataUrl: '' }); setShowSignPad(true); }}
                   onUpdateStaged={u => setStagedSignature((s: any) => ({ ...s, ...u }))}
                   onConfirmSignature={() => handleAction(() => applySignature(activeFile!.file, stagedSignature.dataUrl, stagedSignature.pageNum, stagedSignature.x, stagedSignature.y, stagedSignature.width)).then(() => setStagedSignature(null))}
                   onCancelStaged={() => setStagedSignature(null)}
@@ -577,20 +539,19 @@ const Editor: React.FC<EditorProps> = ({ view, files, activeFile, onFilesChange,
               ))}
             </div>
           ) : (
-            <div className="mt-32 text-center max-w-sm">
-              <div className="p-10 bg-white rounded-[3rem] shadow-inner mb-8 border border-slate-100">
-                <FileSearch size={72} className="mx-auto text-slate-200" strokeWidth={1} />
+            <div className="mt-20 md:mt-32 text-center max-w-sm px-6">
+              <div className="p-6 md:p-10 bg-white rounded-[2rem] md:rounded-[3rem] shadow-inner mb-6 md:mb-8 border border-slate-100">
+                <FileSearch size={48} className="md:w-[72px] md:h-[72px] mx-auto text-slate-200" strokeWidth={1} />
               </div>
-              <h3 className="text-2xl font-black text-slate-800 mb-4">Workspace Empty</h3>
-              <p className="text-slate-500 font-medium leading-relaxed">Select a document from the sidebar or upload a new one to begin editing with professional local tools.</p>
+              <h3 className="text-lg md:text-2xl font-black text-slate-800 mb-2 md:mb-4 uppercase tracking-tighter">Workspace Empty</h3>
+              <p className="text-slate-500 font-medium text-xs md:text-sm leading-relaxed">Select a document or upload a new one to begin editing.</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Signature Overlay */}
       {showSignPad && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
           <SignaturePad onCancel={() => { setShowSignPad(false); setStagedSignature(null); }} onSave={(d: string) => { setStagedSignature((s: any) => ({ ...s, dataUrl: d })); setShowSignPad(false); }} />
         </div>
       )}
