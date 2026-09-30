@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+export type DocId = string;
+export type Rect = [number, number, number, number];
+export type Quad = [number, number, number, number, number, number, number, number];
+
+export interface PageInfo { index: number; width: number; height: number; rotation: 0 | 90 | 180 | 270 }
+export interface SearchHit { page: number; quads: Quad[] }
+export interface SaveOptions { compress: boolean; stripMetadata: boolean; password?: string }
+
+export type AnnotationType = 'highlight' | 'underline' | 'strikeout' | 'squiggly' | 'freetext' | 'ink' | 'stamp'
+export interface AnnotationInput {
+  type: AnnotationType
+  page: number
+  quads?: Quad[]
+  rect?: Rect
+  color?: string
+  opacity?: number
+  contents?: string
+  inkList?: Array<Array<[number, number]>>
+}
+
+export type FormFieldType = 'text' | 'checkbox' | 'radio' | 'choice' | 'signature'
+export interface FormField {
+  name: string
+  type: FormFieldType
+  value: string | boolean
+  rect: Rect
+  page: number
+  options?: string[]
+}
+
+export interface PdfEngine {
+  open(bytes: ArrayBuffer, password?: string): Promise<{ id: DocId; pages: PageInfo[]; needsPassword: boolean }>
+  render(id: DocId, page: number, scale: number): Promise<ImageBitmap>
+  text(id: DocId, page: number): Promise<string>
+  search(id: DocId, needle: string): Promise<SearchHit[]>
+  rearrange(id: DocId, order: number[]): Promise<void>
+  rotate(id: DocId, pages: number[], degrees: 90 | 180 | 270): Promise<void>
+  insertBlank(id: DocId, at: number): Promise<void>
+  merge(target: DocId, source: DocId, at: number): Promise<void>
+  extract(id: DocId, pages: number[]): Promise<DocId>
+  imagesToPdf(images: Blob[]): Promise<DocId>
+  annotate(id: DocId, page: number, a: AnnotationInput): Promise<string>
+  replaceText(id: DocId, page: number, span: Quad[], text: string): Promise<{ usedFallbackFont: boolean }>
+  fields(id: DocId): Promise<FormField[]>
+  setField(id: DocId, name: string, value: string | boolean): Promise<void>
+  flatten(id: DocId): Promise<void>
+  placeImage(id: DocId, page: number, rect: Rect, png: Blob): Promise<void>
+  markRedaction(id: DocId, page: number, quads: Quad[]): Promise<string>
+  applyRedactions(id: DocId): Promise<{ verified: boolean; residualMatches: number }>
+  stamp(id: DocId, kind: 'pageNumbers' | 'watermark', text?: string): Promise<void>
+  save(id: DocId, opts: SaveOptions): Promise<Uint8Array>
+  setMetadata(id: DocId, meta: Record<string, string>): Promise<void>
+  close(id: DocId): Promise<void>
+}
