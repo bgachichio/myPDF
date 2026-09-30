@@ -1,0 +1,12 @@
+{
+  "env": { "BULK_READ_LINES": "350" },
+  "permissions": {
+    "deny": ["Read(./LICENSE)", "Read(./node_modules/**)", "Read(./dist/**)", "Read(./public/tesseract/**)", "Read(./tests/corpus/**/*.pdf)"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Read", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-read.py\"" } ] },
+      { "matcher": "Bash", "hooks": [ { "type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-read.py\"" } ] }
+    ]
+  }
+}

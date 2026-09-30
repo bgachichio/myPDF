@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: gate
+on: [push, pull_request]
+permissions: { contents: read }
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pre-commit && pre-commit run --all-files
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npx eslint . && npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
+      - run: sudo apt-get install -y qpdf && node scripts/corpus-check.mjs
+      - run: npx playwright install --with-deps chromium && npx playwright test

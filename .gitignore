@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vercel/
+coverage/
+test-results/
+playwright-report/
+*.local
+# never commit real documents: only files listed in tests/corpus/MANIFEST.md
+tests/corpus/private/
