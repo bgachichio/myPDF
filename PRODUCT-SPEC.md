@@ -328,7 +328,7 @@ DEPLOY.md      : [ ] drafted at M0, tested at M4
 Architect      : Claude Chat - this spec
 Commit gate    : [ ] pre-commit installed at scaffold
 Frontend gate  : [ ] six stages at M4
-Handover packet: [ ] issued 30-09-2026; ticks at the commit sha
+Handover packet: [x] committed 76de001 (30-09-2026), bgachichio/myPDF
 Builder        : Claude Code - executes the packet, decides nothing
 ```
 

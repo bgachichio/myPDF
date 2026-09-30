@@ -37,7 +37,7 @@ DEPLOY.md      : [ ] drafted (1, 2, 3, 5, 6, 10); builder fills 4, 7, 8, 9; test
 Architect      : Claude Chat
 Commit gate    : [ ] builder runs `pre-commit install`; CI runs `pre-commit run --all-files`
 Frontend gate  : [ ] frontend-verification six stages at M4, stage 6 on the production bundle
-Handover packet: [ ] committed at <sha>
+Handover packet: [x] committed 76de001 (30-09-2026)
 Builder        : Claude Code
 ```
 
