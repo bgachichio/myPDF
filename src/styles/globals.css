@@ -1,0 +1,159 @@
+/* designer.md §15 - globals.css (v1.0, 30-09-2026). Copy verbatim into every web build.
+   Covers: colour roles §4.2/§4.3, elevation §5, type §6, motion §9.1, state layers §9.2,
+   ripple §9.3, reduced motion §9.4, font scale §12.2. Theme = class "dark" on <html> (§12.1).
+   Fonts are self-hosted from /fonts (Inter Variable and Courier Prime, both SIL OFL 1.1). */
+@import "tailwindcss";
+
+@font-face { font-family: 'Inter Variable'; src: url('/fonts/InterVariable.woff2') format('woff2');
+  font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Courier Prime'; src: url('/fonts/CourierPrime-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap; }
+
+/* ---------- §4.2 colour roles, light ---------- */
+:root {
+  color-scheme: light;
+  --md-primary:#237352; --md-on-primary:#FFFFFF;
+  --md-primary-container:#C4EEDC; --md-on-primary-container:#081C13;
+  --md-secondary:#49695C; --md-on-secondary:#FFFFFF;
+  --md-secondary-container:#DBE6E1; --md-on-secondary-container:#0A1F18;
+  --md-tertiary:#3E6774; --md-on-tertiary:#FFFFFF;
+  --md-tertiary-container:#D6E6EB; --md-on-tertiary-container:#071E26;
+  --md-error:#BA1A1A; --md-on-error:#FFFFFF;
+  --md-error-container:#FFDAD6; --md-on-error-container:#410002;
+  --md-surface:#F7FAF8; --md-surface-dim:#D9DEDB;
+  --md-surface-container-lowest:#FFFFFF; --md-surface-container-low:#F1F5F2;
+  --md-surface-container:#EBEFEC; --md-surface-container-high:#E5EAE7;
+  --md-surface-container-highest:#DFE4E1;
+  --md-on-surface:#171D1A; --md-on-surface-variant:#3F4945;
+  --md-outline:#6F7975; --md-outline-variant:#BFC9C4;
+  --md-inverse-surface:#2B322F; --md-inverse-on-surface:#EDF1EE; --md-scrim:#000000;
+
+  /* §5 elevation */
+  --md-elevation-0: none;
+  --md-elevation-1: 0 1px 2px 0 rgb(0 0 0 / .30), 0 1px 3px 1px rgb(0 0 0 / .15);
+  --md-elevation-2: 0 1px 2px 0 rgb(0 0 0 / .30), 0 2px 6px 2px rgb(0 0 0 / .15);
+  --md-elevation-3: 0 1px 3px 0 rgb(0 0 0 / .30), 0 4px 8px 3px rgb(0 0 0 / .15);
+  --md-elevation-4: 0 2px 3px 0 rgb(0 0 0 / .30), 0 6px 10px 4px rgb(0 0 0 / .15);
+  --md-elevation-5: 0 4px 4px 0 rgb(0 0 0 / .30), 0 8px 12px 6px rgb(0 0 0 / .15);
+
+  /* §9.1 motion */
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-short: 150ms; --dur-medium: 300ms; --dur-long: 500ms;
+
+  /* §6 families */
+  --font-ui: 'Inter Variable', system-ui, sans-serif;
+  --font-narrative: 'Courier Prime', 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* §6.1 narrative sizes; mobile step-down below 640px is set further down */
+  --type-display-lg: 3.5rem;   --type-display-lg-lh: 4rem;
+  --type-display-sm: 2.25rem;  --type-display-sm-lh: 2.75rem;
+  --type-headline-lg: 2rem;    --type-headline-lg-lh: 2.5rem;
+  --type-headline-sm: 1.5rem;  --type-headline-sm-lh: 2rem;
+
+  /* §12.2 font scale */
+  --font-scale: 1;
+}
+
+/* ---------- §4.3 colour roles, dark ---------- */
+.dark {
+  color-scheme: dark;
+  --md-primary:#88DDBA; --md-on-primary:#113928;
+  --md-primary-container:#174F38; --md-on-primary-container:#C4EEDC;
+  --md-secondary:#AFCCC0; --md-on-secondary:#1B3529;
+  --md-secondary-container:#324B40; --md-on-secondary-container:#CBE9DC;
+  --md-tertiary:#A6CCDA; --md-on-tertiary:#093642;
+  --md-tertiary-container:#254C59; --md-on-tertiary-container:#C2E8F6;
+  --md-error:#FFB4AB; --md-on-error:#690005;
+  --md-error-container:#93000A; --md-on-error-container:#FFDAD6;
+  --md-surface:#0F1512;
+  --md-surface-container-lowest:#0A100D; --md-surface-container-low:#171D1A;
+  --md-surface-container:#1B211E; --md-surface-container-high:#262B28;
+  --md-surface-container-highest:#303633;
+  --md-on-surface:#DFE4E1; --md-on-surface-variant:#BFC9C4;
+  --md-outline:#89938E; --md-outline-variant:#3F4945;
+  --md-inverse-surface:#DFE4E1; --md-inverse-on-surface:#2B322F;
+  /* §5 dark rule: levels 1 and 2 lose their shadow; raise the container instead */
+  --md-elevation-1: none; --md-elevation-2: none;
+}
+
+/* ---------- §12.2 font scale ---------- */
+[data-font-scale="compact"] { --font-scale: .9375; }
+[data-font-scale="large"]   { --font-scale: 1.125; }
+[data-font-scale="xlarge"]  { --font-scale: 1.25; }
+html { font-size: calc(1rem * var(--font-scale)); }
+
+/* ---------- Tailwind aliases: tokens only, no raw palette (§4.4) ---------- */
+@theme inline {
+  --color-primary: var(--md-primary); --color-on-primary: var(--md-on-primary);
+  --color-primary-container: var(--md-primary-container); --color-on-primary-container: var(--md-on-primary-container);
+  --color-secondary: var(--md-secondary); --color-on-secondary: var(--md-on-secondary);
+  --color-secondary-container: var(--md-secondary-container); --color-on-secondary-container: var(--md-on-secondary-container);
+  --color-tertiary: var(--md-tertiary); --color-on-tertiary: var(--md-on-tertiary);
+  --color-error: var(--md-error); --color-on-error: var(--md-on-error);
+  --color-error-container: var(--md-error-container); --color-on-error-container: var(--md-on-error-container);
+  --color-surface: var(--md-surface);
+  --color-surface-container-lowest: var(--md-surface-container-lowest);
+  --color-surface-container-low: var(--md-surface-container-low);
+  --color-surface-container: var(--md-surface-container);
+  --color-surface-container-high: var(--md-surface-container-high);
+  --color-surface-container-highest: var(--md-surface-container-highest);
+  --color-on-surface: var(--md-on-surface); --color-on-surface-variant: var(--md-on-surface-variant);
+  --color-outline: var(--md-outline); --color-outline-variant: var(--md-outline-variant);
+  --color-inverse-surface: var(--md-inverse-surface); --color-inverse-on-surface: var(--md-inverse-on-surface);
+  --font-sans: var(--font-ui); --font-mono: var(--font-narrative);
+}
+
+/* ---------- §6 base type ---------- */
+body {
+  background: var(--md-surface); color: var(--md-on-surface);
+  font-family: var(--font-ui); font-size: 0.875rem; line-height: 1.375rem;
+  font-feature-settings: 'cv11', 'ss01', 'tnum'; font-optical-sizing: auto;
+}
+.display-lg, .display-sm, .headline-lg, .headline-sm {
+  font-family: var(--font-narrative); font-weight: 400; letter-spacing: 0em; /* §6.2: never negative */
+}
+.display-lg  { font-size: var(--type-display-lg);  line-height: var(--type-display-lg-lh); }
+.display-sm  { font-size: var(--type-display-sm);  line-height: var(--type-display-sm-lh); }
+.headline-lg { font-size: var(--type-headline-lg); line-height: var(--type-headline-lg-lh); }
+.headline-sm { font-size: var(--type-headline-sm); line-height: var(--type-headline-sm-lh); }
+/* Mobile step-down (§6.1): one step down the Material 3 scale below 640px, so mono lines
+   stay inside their character budgets at xlarge on a 380px screen. */
+@media (max-width: 639px) {
+  :root {
+    --type-display-lg: 2.25rem;  --type-display-lg-lh: 2.75rem;
+    --type-display-sm: 1.75rem;  --type-display-sm-lh: 2.25rem;
+    --type-headline-lg: 1.5rem;  --type-headline-lg-lh: 2rem;
+    --type-headline-sm: 1.25rem; --type-headline-sm-lh: 1.75rem;
+  }
+}
+
+/* ---------- §9.2 state layer ---------- */
+.state-layer { position: relative; overflow: hidden; isolation: isolate; }
+.state-layer::after {
+  content: ""; position: absolute; inset: 0; background: currentColor; opacity: 0;
+  pointer-events: none; transition: opacity var(--dur-short) var(--ease-standard); z-index: -1;
+}
+.state-layer:hover::after { opacity: .08; }
+.state-layer:focus-visible::after { opacity: .10; }
+.state-layer:active::after { opacity: .10; }
+.state-layer[aria-grabbed="true"]::after { opacity: .16; }
+.state-layer:disabled, .state-layer[aria-disabled="true"] { opacity: .38; }
+
+/* ---------- §9.3 ripple (driven by useRipple) ---------- */
+.ripple {
+  position: absolute; border-radius: 9999px; pointer-events: none; background: currentColor;
+  transform: scale(0); opacity: .12;
+  animation: ripple-grow 450ms var(--ease-emphasized) forwards,
+             ripple-fade 225ms var(--ease-standard) 225ms forwards;
+}
+@keyframes ripple-grow { to { transform: scale(1); } }
+@keyframes ripple-fade { to { opacity: 0; } }
+
+/* ---------- §9.4 reduced motion: the ripple becomes an instant flash ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

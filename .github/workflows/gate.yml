@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Commit gate (builder §7.1 item 6). Pre-commit checks always run; the app steps switch on
+# automatically once package-lock.json exists (M0 scaffold), so the gate is green before then.
 name: gate
 on: [push, pull_request]
 permissions: { contents: read }
@@ -8,15 +10,29 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install pre-commit && pre-commit run --all-files
-      - run: npm ci
-      - run: npm audit --audit-level=high
-      - run: npx eslint . && npx tsc --noEmit
-      - run: npm test
-      - run: npm run build
-      - run: sudo apt-get install -y qpdf && node scripts/corpus-check.mjs
-      - run: npx playwright install --with-deps chromium && npx playwright test
+      - name: Pre-commit (secrets, keys, large files, em dashes)
+        run: pip install pre-commit && pre-commit run --all-files
+      - name: Detect app
+        id: app
+        run: |
+          if [ -f package-lock.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"
+          else echo "present=false" >> "$GITHUB_OUTPUT"; echo "::notice::No package-lock.json yet; app steps skipped until the M0 scaffold."; fi
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.present == 'true'
+        with: { node-version: 22, cache: npm }
+      - if: steps.app.outputs.present == 'true'
+        run: npm ci
+      - if: steps.app.outputs.present == 'true'
+        run: npm audit --audit-level=high
+      - if: steps.app.outputs.present == 'true'
+        run: npx eslint . && npx tsc --noEmit
+      - if: steps.app.outputs.present == 'true'
+        run: npm test
+      - if: steps.app.outputs.present == 'true'
+        run: npm run build
+      - if: steps.app.outputs.present == 'true' && hashFiles('scripts/corpus-check.mjs') != ''
+        run: sudo apt-get install -y qpdf && node scripts/corpus-check.mjs
+      - if: steps.app.outputs.present == 'true' && hashFiles('playwright.config.*') != ''
+        run: npx playwright install --with-deps chromium && npx playwright test

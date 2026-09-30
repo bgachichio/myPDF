@@ -1,45 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later
-   Resolved design tokens for myPDF (designer.md sections 4 to 9, 30-09-2026).
-   The builder uses these values only. Anything else is a handback. */
-:root{
-  --md-primary:#237352; --md-on-primary:#FFFFFF;
-  --md-primary-container:#C4EEDC; --md-on-primary-container:#081C13;
-  --md-tertiary:#3E6774; --md-on-tertiary:#FFFFFF;
-  --md-error:#BA1A1A; --md-on-error:#FFFFFF; --md-error-container:#FFDAD6; --md-on-error-container:#410002;
-  --md-surface:#F7FAF8; --md-surface-container-lowest:#FFFFFF; --md-surface-container-low:#F1F5F2;
-  --md-surface-container:#EBEFEC; --md-surface-container-high:#E5EAE7; --md-surface-container-highest:#DFE4E1;
-  --md-on-surface:#171D1A; --md-on-surface-variant:#3F4945;
-  --md-outline:#6F7975; --md-outline-variant:#BFC9C4;
-  --md-inverse-surface:#2B322F; --md-inverse-on-surface:#EDF1EE; --md-scrim:#000000;
-  --paper:#FFFFFF;
-  --redact-mark:rgba(186,26,26,.13);
-  --font-ui:'Inter Variable',system-ui,sans-serif;
-  --font-narrative:'Courier Prime','IBM Plex Mono',ui-monospace,monospace;
-  /* Home hero = headline-lg 2rem/2.5rem mono 400; screen title = title-md 1rem/1.5rem 500;
-     dock label = label-md 0.75rem/1rem 500; body = body-md 0.875rem/1.375rem 400 */
-  --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px; --r-2xl:32px; --r-full:9999px;
-  /* space scale: 4 8 12 16 20 24 32 40 56 72 96 only */
-  --gutter:16px; --card-pad:20px; --gap-related:12px; --gap-cards:16px; --gap-sections:40px;
-  --touch-min:44px; --touch-primary:48px;
-  --ease-emphasized:cubic-bezier(0.2,0,0,1); --ease-decelerate:cubic-bezier(0.05,0.7,0.1,1);
-  --ease-accelerate:cubic-bezier(0.3,0,0.8,0.15); --ease-sheet:cubic-bezier(0.32,0.72,0,1);
-  --dur-short:150ms; --dur-medium:300ms; --dur-long:500ms;
-  /* font scale: designer §12.2 ([data-font-scale] compact .9375, default 1, large 1.125, xlarge 1.25), in globals.css */
+   myPDF tokens NOT already in globals.css (designer.md §15 asset, copied verbatim).
+   Colour roles, elevation, motion, type and font scale come from globals.css only.
+   Import order in main.tsx: globals.css, then this file. Anything else is a handback. */
+:root {
+  /* §7 shape */
+  --r-xs: 8px; --r-sm: 12px; --r-md: 16px; --r-lg: 20px; --r-xl: 28px; --r-2xl: 32px; --r-full: 9999px;
+  /* §8 space: 4 8 12 16 20 24 32 40 56 72 96 only */
+  --gutter: 16px; --card-pad: 20px; --gap-related: 12px; --gap-cards: 16px; --gap-sections: 40px;
+  --touch-min: 44px; --touch-primary: 48px;
+  /* myPDF only: the page canvas and the redaction mark */
+  --paper: #FFFFFF;
+  --redact-mark: rgb(186 26 26 / .13);
 }
-@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
-  --md-primary:#88DDBA; --md-on-primary:#113928; --md-primary-container:#174F38; --md-on-primary-container:#C4EEDC;
-  --md-tertiary:#A6CCDA; --md-on-tertiary:#093642;
-  --md-error:#FFB4AB; --md-on-error:#690005; --md-error-container:#93000A; --md-on-error-container:#FFDAD6;
-  --md-surface:#0F1512; --md-surface-container-lowest:#0A100D; --md-surface-container-low:#171D1A;
-  --md-surface-container:#1B211E; --md-surface-container-high:#262B28; --md-surface-container-highest:#303633;
-  --md-on-surface:#DFE4E1; --md-on-surface-variant:#BFC9C4; --md-outline:#89938E; --md-outline-variant:#3F4945;
-  --md-inverse-surface:#DFE4E1; --md-inverse-on-surface:#2B322F; --paper:#F4F4F2; } }
-:root[data-theme="dark"]{
-  --md-primary:#88DDBA; --md-on-primary:#113928; --md-primary-container:#174F38; --md-on-primary-container:#C4EEDC;
-  --md-tertiary:#A6CCDA; --md-on-tertiary:#093642;
-  --md-error:#FFB4AB; --md-on-error:#690005; --md-error-container:#93000A; --md-on-error-container:#FFDAD6;
-  --md-surface:#0F1512; --md-surface-container-lowest:#0A100D; --md-surface-container-low:#171D1A;
-  --md-surface-container:#1B211E; --md-surface-container-high:#262B28; --md-surface-container-highest:#303633;
-  --md-on-surface:#DFE4E1; --md-on-surface-variant:#BFC9C4; --md-outline:#89938E; --md-outline-variant:#3F4945;
-  --md-inverse-surface:#DFE4E1; --md-inverse-on-surface:#2B322F; --paper:#F4F4F2; }
-@media (prefers-reduced-motion:reduce){ *{transition-duration:0ms!important;animation-duration:0ms!important} }
+.dark {
+  --paper: #F4F4F2;  /* the page stays light in dark mode, dimmed slightly */
+}

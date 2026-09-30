@@ -51,14 +51,16 @@ mypdf/
 ├── vercel.json  deploy.sh  rollback.sh
 ├── index.html                    # loads /theme-init.js synchronously in <head>
 ├── public/
-│   ├── theme-init.js             # no-flash script (designer section 12)
+│   ├── theme-init.js             # no-flash script (designer §12.1), committed
+│   ├── fonts/                    # InterVariable.woff2, CourierPrime-Regular.woff2 + OFL licences, committed
 │   ├── icons/                    # 192, 512, maskable 512
 │   └── tesseract/                # worker.min.js, core wasm, eng.traineddata.gz
 ├── src/
 │   ├── main.tsx  app/App.tsx  app/router.ts      # screens: home, work, canvas
 │   ├── config/support.ts                         # Paystack URL, Bitcoin address, sign-off (F15)
-│   ├── styles/tokens.css  styles/globals.css     # tokens resolved; globals from designer assets
-│   ├── hooks/appearance.tsx                      # copied from designer assets
+│   ├── styles/globals.css                        # designer §15 asset, verbatim, committed
+│   ├── styles/tokens.css                         # shape, space, paper, redact mark only, committed
+│   ├── hooks/appearance-hooks.jsx                # designer §16 asset, verbatim, committed (tsconfig allowJs)
 │   ├── engine/PdfEngine.ts                       # the interface in section 5
 │   ├── engine/mupdf/engine.worker.ts             # the only file that imports "mupdf"
 │   ├── engine/mupdf/client.ts                    # comlink wrapper implementing PdfEngine
@@ -181,7 +183,7 @@ export interface PdfEngine {
   - `share_target`: `{ action: "/share", method: "POST", enctype: "multipart/form-data", params: { files: [{ name: "file", accept: ["application/pdf"] }] } }`.
   - `file_handlers`: `[{ action: "/", accept: { "application/pdf": [".pdf"] } }]`.
 - **Service worker.**
-  - Precache the shell, the engine chunk, `mupdf-wasm.wasm` and `public/tesseract/**`.
+  - Precache the shell, the engine chunk, `mupdf-wasm.wasm`, `public/fonts/**` and `public/tesseract/**`.
   - `sw/share-target.ts` intercepts `POST /share`, writes the file to `/inbox/`, and redirects with 303 to `/?open=inbox/<uuid>`.
 - **Loading order.** The shell renders without the engine. The engine worker spawns on first open. Progress is shown from the wasm fetch `Content-Length`.
 - **Headers** are in `vercel.json` (CSP, no third-party origins).

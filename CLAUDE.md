@@ -19,7 +19,7 @@ You are the **builder**. Claude Chat was the architect. Every decision is alread
 3. Settings panel in `localStorage`, one tap from every screen.
 4. Installable PWA, offline-capable, mobile first.
 
-Use the house `useAppearance` hook and the no-flash head script from the designer skill (copy `assets/appearance-hooks.jsx` and `assets/globals.css` from the aiOS vault skill folder verbatim). Do not write a second version.
+Use the committed designer assets as they are: `src/styles/globals.css`, `src/hooks/appearance-hooks.jsx` (`useAppearance`, `useRipple`) and `public/theme-init.js`, loaded synchronously in `<head>`. Do not write a second version or edit them; a needed change is a handback, because they are shared with every other project.
 
 ## The five commands (and no sixth)
 | Command | Does | Budget |
@@ -44,7 +44,7 @@ Playwright end-to-end tests run in CI and locally with `npx playwright test`; th
 
 ## Token routing
 - Reads over 350 lines are blocked by `.claude/hooks/guard-read.py` unless you pass an offset and limit.
-- Route bulk reads and predictable boilerplate through `scripts/bulk-read` and `scripts/code-write`, copied from the aiOS standard project template before the first session. If they are absent, apply the same 350-line rule by hand and say so in the commit message.
+- `bulk-read` and `code-write` are not installed: local models are off the stack until the RAM upgrade (builder §3.2), so there is no worker to route to. The hook still blocks unbounded large reads; answer them with targeted offset/limit reads or narrowing pipes (`grep`, `rg`) instead.
 - Never read `LICENSE`, `node_modules/`, `dist/` or `public/tesseract/` into context.
 
 ## Handback rule (builder section 0.1)
