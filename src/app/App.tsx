@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { SessionProvider, useSession } from '@/app/session'
 import { useRoute } from '@/app/router'
 import Home from '@/features/home/Home'
-import Workbench from '@/features/workbench/Workbench'
-import Canvas from '@/features/canvas/Canvas'
+// The editor screens load when a document opens, so the first screen paints from a small bundle.
+const Workbench = lazy(() => import('@/features/workbench/Workbench'))
+const Canvas = lazy(() => import('@/features/canvas/Canvas'))
 import SettingsSheet from '@/features/settings/SettingsSheet'
 import PasswordSheet from '@/features/common/PasswordSheet'
 
@@ -47,8 +48,10 @@ function Shell() {
   return (
     <>
       {route === 'home' && <Home onSettings={() => setSettings(true)} />}
-      {route === 'work' && <Workbench onBack={() => void close()} onEdit={openCanvas} onSettings={() => setSettings(true)} />}
-      {route === 'canvas' && <Canvas startPage={canvasPage} onBack={toWork} onSettings={() => setSettings(true)} />}
+      <Suspense fallback={<output className="block p-6 text-center" data-testid="loading">Opening your file on this device</output>}>
+        {route === 'work' && <Workbench onBack={() => void close()} onEdit={openCanvas} onSettings={() => setSettings(true)} />}
+        {route === 'canvas' && <Canvas startPage={canvasPage} onBack={toWork} onSettings={() => setSettings(true)} />}
+      </Suspense>
       <SettingsSheet open={settings} onClose={() => setSettings(false)} />
       <PasswordSheet />
       {busy && <output className="block fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-2 rounded-full text-sm" style={{ background: 'var(--md-inverse-surface)', color: 'var(--md-inverse-on-surface)' }} data-testid="busy">{busy}</output>}

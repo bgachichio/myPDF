@@ -7,7 +7,6 @@ import ExportSheet from '@/features/workbench/ExportSheet'
 import Thumb from '@/features/workbench/Thumb'
 import { formatRanges, parseRanges, reorder } from '@/features/workbench/ranges'
 import { saveBytes } from '@/features/common/download'
-import { recognise, stopOcr } from '@/engine/ocr/ocr'
 
 interface Props { onBack: () => void; onEdit: (page: number) => void; onSettings: () => void }
 type Panel = null | 'export' | 'move' | 'extract' | 'watermark' | 'ocr'
@@ -85,6 +84,7 @@ export default function Workbench({ onBack, onEdit, onSettings }: Props) {
   }
   const doOcr = async () => {
     const scale = 2
+    const { recognise, stopOcr } = await import('@/engine/ocr/ocr') // loads tesseract.js only when OCR is used
     try {
       await run('Recognising text', async (e, id) => {
         for (let i = 0; i < n; i++) {
