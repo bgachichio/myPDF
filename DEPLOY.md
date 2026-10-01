@@ -33,10 +33,12 @@ npm test                            # 3 files, 11 tests, about 2 s
 npx playwright install chromium     # one-off, about 114 MB
 npx playwright test                 # 2 tests, about 10 s, runs against dist/ served with the vercel.json headers
 ```
+One-off asset step for OCR (already committed under `public/tesseract/`, repeat only to upgrade): `worker.min.js` from `node_modules/tesseract.js/dist/`, `tesseract-core-relaxedsimd-lstm.wasm.js` and `tesseract-core-simd-lstm.wasm.js` from `node_modules/tesseract.js-core/`, and `eng.traineddata.gz` from `https://raw.githubusercontent.com/naptha/tessdata/gh-pages/4.0.0_fast/eng.traineddata.gz` (tessdata_fast, Apache-2.0, 1.9 MB). Browsers without SIMD are not supported for OCR.
+
 Also needed for `node scripts/corpus-check.mjs`: `sudo apt-get install -y qpdf`. Without it the script exits 2 with a clear message and does not guess. CI installs qpdf and ran the corpus check green on 01-10-2026.
 
 ## 5. Build
-`npm ci && npm run build` produces `dist/`. The expected size is about 16 MB raw, most of it `mupdf-wasm.wasm` (10.4 MB, 3.6 MB with Brotli) plus the Tesseract core and English data (not yet bundled; added at M3, measured then). Measured 01-10-2026 at M0: `npm run build` takes about 1.1 s; `dist/` precaches 23 entries, 10.9 MB, of which the wasm is 10.4 MB (4.8 MB gzip on the wire). Budget is under 60 s.
+`npm ci && npm run build` produces `dist/`. The expected size is about 16 MB raw, most of it `mupdf-wasm.wasm` (10.4 MB, 3.6 MB with Brotli) plus the Tesseract core and English data (not yet bundled; added at M3, measured then). Measured 01-10-2026 at M3: `npm run build` takes about 1.5 s; the service worker precaches 24 files, 20.6 MB: MuPDF wasm 10.4 MB (4.8 MB gzip on the wire), Tesseract worker, two core variants and `eng.traineddata.gz` about 8 MB, the app about 0.4 MB. Budget is under 60 s.
 
 ## 6. Deploy
 1. `git pull && npm ci && npm test && npm run build`
@@ -61,13 +63,16 @@ Observed 01-10-2026 on staged deployment `mypdf-n6nkbdzcq-gachichio.vercel.app`:
 `./rollback.sh [deployment-url]` runs `vercel rollback --yes`, then fails loudly if production did not move. Pass a target from `npx vercel ls` (staged deployments make "previous" ambiguous: with no argument Vercel reported success while staying on the same deployment, observed 01-10-2026). Tested 01-10-2026: `./rollback.sh https://mypdf-n6nkbdzcq-gachichio.vercel.app` moved production from `mypdf-ot3x69qba` to `mypdf-n6nkbdzcq` in 18 s (limit 60 s); `vercel promote <url>` restored it.
 
 ## 9. Troubleshooting
-Six failures that actually happened building M0 (01-10-2026):
+Nine failures that actually happened building M0 to M3 (01-10-2026):
 1. **CI red at `npx eslint .`: "typescript-eslint does not support TS 7.0".** BUILD-BRIEF pins TypeScript 7.0.2. Fix: ESLint lints JS only (`eslint.config.js`); `tsc -b` is the TypeScript gate; `typescript-eslint` removed.
 2. **Render threw "Failed to construct ImageData: input data length is not equal to 4 * width * height".** MuPDF returns 3 bytes per pixel when alpha is off. Fix: expand RGB to RGBA in `engine.worker.ts` before `createImageBitmap`.
 3. **`corpus-check` reported 0 of 25 on a machine without qpdf.** The check swallowed the missing binary as a failure. Fix: it now exits 2 with "qpdf is not installed". Real result is from CI, where qpdf is installed.
 4. **`vercel deploy --prebuilt` refused: output built for production, deploying to preview.** Fix: `vercel build --prod`, then `vercel deploy --prebuilt --prod --skip-domain` (staged, off the domain), verify, then `vercel promote`.
 5. **`vercel deploy` failed with "fetch failed ... AbortError" while uploading.** The 10.4 MB wasm upload timed out once; an immediate retry succeeded. Re-run the deploy; nothing is half-applied.
 6. **`./rollback.sh` with no argument returned success but changed nothing.** Fix: the script compares production before and after and fails; pass an explicit target.
+7. **Every engine call hung after M1 added a static `import 'mupdf'` to the worker.** The mupdf module has a top-level await; a worker still evaluating drops its first messages. Fix: import lazily and make every engine method await a `ready` promise (`engine.worker.ts`).
+8. **Playwright clicked the wrong place after switching Canvas tools.** The header height changes with the tool, so a box measured before the switch is stale. Measure after the tool bar settles.
+9. **Lint failed on `public/share-target-sw.js`.** Service-worker globals (`self`, `Response`, `File`) are declared for that file in `eslint.config.js`.
 Also seen: `vercel.app` aliases return 302 (Vercel deployment protection), so health checks use `vercel curl`, which carries the bypass. Candidates not yet hit: a stale service worker after an update, OPFS in private windows (M1), a Tesseract path 404 (M3).
 
 ## 10. Uninstall

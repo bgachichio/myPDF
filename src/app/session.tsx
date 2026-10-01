@@ -67,10 +67,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const load = useCallback(async (name: string, bytes: Uint8Array, storageId: string | undefined, password?: string) => {
+    if (bytes.length > 250 * 1024 * 1024) throw new Error('Files over 250 MB are not supported')
     const engine = getEngine()
     const prev = sessionRef.current
     const res = await engine.open(Comlink.transfer(own(bytes), [own(bytes)]) as ArrayBuffer, password)
     if (res.needsPassword && !res.id) { setPending({ name, bytes, storageId, wrong: Boolean(password) }); return false }
+    if (res.pages.length > 5000) { void engine.close(res.id); throw new Error('Files over 5,000 pages are not supported') }
     if (prev) void engine.close(prev.id)
     const sid = storageId ?? crypto.randomUUID()
     if (!storageId) await opfs.write(['docs', sid], 'original.pdf', bytes)
