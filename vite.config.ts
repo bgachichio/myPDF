@@ -19,11 +19,13 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,wasm,gz}'],
         maximumFileSizeToCacheInBytes: 50 * 1024 * 1024,
+        importScripts: ['share-target-sw.js'],
+        navigateFallbackDenylist: [/^\/share/],
         runtimeCaching: []
       },
-      includeAssets: ['fonts/**', 'tesseract/**'],
+      includeAssets: ['fonts/**', 'tesseract/**', 'share-target-sw.js'],
       manifest: {
         name: 'myPDF',
         short_name: 'myPDF',

@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // The only file that imports "mupdf" (BUILD-BRIEF section 3). Rect and Quad are MuPDF page space: points, origin top-left, y down.
 import * as Comlink from 'comlink'
-import * as mupdf from 'mupdf'
+import type * as M from 'mupdf'
 import type { DocId, PageInfo, SearchHit, SaveOptions, AnnotationInput, FormField, Rect, Quad, OcrWord, PdfEngine } from '@/engine/PdfEngine'
 
-type Doc = mupdf.PDFDocument
+// mupdf is imported lazily: its module has a top-level await, and a worker that is still evaluating drops the first messages.
+let mupdf: typeof M
+const ready = import('mupdf').then((m) => { mupdf = m })
+type Doc = M.PDFDocument
 const docs = new Map<DocId, Doc>()
 let nextId = 1
 
@@ -45,7 +48,7 @@ const pdfEscape = (t: string) => t.replace(/[\\()]/g, (c) => '\\' + c).replace(/
 const winAnsiOk = (t: string) => [...t].every((c) => c.charCodeAt(0) < 256)
 
 /** Append a content stream to a page, merging fonts and XObjects into its resources. Coordinates in the stream are PDF user space. */
-function appendContent(doc: Doc, pageIndex: number, stream: string, fonts: Record<string, mupdf.PDFObject> = {}, xobjects: Record<string, mupdf.PDFObject> = {}) {
+function appendContent(doc: Doc, pageIndex: number, stream: string, fonts: Record<string, M.PDFObject> = {}, xobjects: Record<string, M.PDFObject> = {}) {
   const pageObj = doc.findPage(pageIndex)
   let res = pageObj.get('Resources')
   if (res.isNull()) {
@@ -110,12 +113,12 @@ async function downscaleImages(doc: Doc) {
   }
 }
 
-const ANNOT: Record<string, mupdf.PDFAnnotationType> = {
+const ANNOT = {
   highlight: 'Highlight', underline: 'Underline', strikeout: 'StrikeOut', squiggly: 'Squiggly',
   freetext: 'FreeText', ink: 'Ink', stamp: 'Stamp', square: 'Square', circle: 'Circle', note: 'Text',
 }
 
-export const engine: PdfEngine = {
+const raw: PdfEngine = {
   async open(bytes, password) {
     const base = mupdf.Document.openDocument(new Uint8Array(bytes), 'application/pdf')
     const doc = base.asPDF()
@@ -148,6 +151,15 @@ export const engine: PdfEngine = {
   async text(id, page) {
     const p = D(id).loadPage(page)
     const t = p.toStructuredText('preserve-whitespace').asText()
+    p.destroy()
+    return t
+  },
+
+  async pages(id) { return pagesOf(D(id)) },
+
+  async textIn(id, page, rect) {
+    const p = D(id).loadPage(page)
+    const t = p.toStructuredText('preserve-whitespace').copy([rect[0], rect[1]], [rect[2], rect[3]]).trim()
     p.destroy()
     return t
   },
@@ -212,7 +224,7 @@ export const engine: PdfEngine = {
 
   async annotate(id, pageIndex, a: AnnotationInput) {
     const page = D(id).loadPage(pageIndex)
-    const annot = page.createAnnotation(ANNOT[a.type])
+    const annot = page.createAnnotation((ANNOT as Record<string, M.PDFAnnotationType>)[a.type])
     const color = hex(a.color, a.type === 'highlight' ? [1, 0.92, 0.2] : [0.1, 0.1, 0.1])
     annot.setColor(color)
     if (a.opacity !== undefined) annot.setOpacity(a.opacity)
@@ -390,5 +402,10 @@ export const engine: PdfEngine = {
 
   async close(id) { docs.get(id)?.destroy(); docs.delete(id) },
 }
+
+// Every call waits for the MuPDF module, so messages that arrive during start-up are queued, not lost.
+export const engine = Object.fromEntries(
+  Object.entries(raw).map(([name, fn]) => [name, async (...args: unknown[]) => { await ready; return (fn as (...a: unknown[]) => unknown)(...args) }]),
+) as unknown as PdfEngine
 
 Comlink.expose(engine)

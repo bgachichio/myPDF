@@ -54,6 +54,10 @@ export interface PdfEngine {
   stamp(id: DocId, kind: 'pageNumbers' | 'watermark', text?: string): Promise<void>
   save(id: DocId, opts: SaveOptions): Promise<Uint8Array>
   setMetadata(id: DocId, meta: Record<string, string>): Promise<void>
+  /** Added at M1 (decision log 01-10-2026): current page list after edits. */
+  pages(id: DocId): Promise<PageInfo[]>
+  /** Added at M2 (decision log 01-10-2026): text under a rectangle, used to prefill text replacement and to preview redactions. */
+  textIn(id: DocId, page: number, rect: Rect): Promise<string>
   /** Added at M3 (decision log 01-10-2026): invisible OCR text layer, one entry per recognised word. Rect is in page space. */
   addTextLayer(id: DocId, page: number, words: OcrWord[]): Promise<void>
   close(id: DocId): Promise<void>
