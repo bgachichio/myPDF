@@ -8,7 +8,7 @@ echo "Building..."
 npx vercel build --prod --yes >/dev/null
 
 echo "Deploying staged production build (not yet on the domain)..."
-PREVIEW_URL=$(npx vercel deploy --prebuilt --prod --skip-domain 2>/dev/null | tail -1)
+PREVIEW_URL=$(npx vercel deploy --prebuilt --prod --skip-domain 2>/dev/null | python3 -c 'import json,sys; print(json.load(sys.stdin)["deployment"]["url"])')
 echo "Preview: $PREVIEW_URL"
 
 echo "Verifying preview..."

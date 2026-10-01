@@ -58,15 +58,16 @@ curl -s -o /dev/null -w '%{http_code} %{content_type}\n' https://mypdf.gachichio
 Observed 01-10-2026 on staged deployment `mypdf-n6nkbdzcq-gachichio.vercel.app`: `/` 200 text/html, manifest 200 application/manifest+json, wasm 200 application/wasm, `/sw.js` 200, CSP, Referrer-Policy, X-Content-Type-Options and Permissions-Policy all present. Pixel R01 share-sheet check: not applicable until M1 (the share target handler is built there); record its date here then.
 
 ## 8. Rollback
-`./rollback.sh` runs `vercel rollback --yes`, which promotes the previous production deployment. Last tested: ROLLBACK_DATE.
+`./rollback.sh [deployment-url]` runs `vercel rollback --yes`, then fails loudly if production did not move. Pass a target from `npx vercel ls` (staged deployments make "previous" ambiguous: with no argument Vercel reported success while staying on the same deployment, observed 01-10-2026). Tested 01-10-2026: `./rollback.sh https://mypdf-n6nkbdzcq-gachichio.vercel.app` moved production from `mypdf-ot3x69qba` to `mypdf-n6nkbdzcq` in 18 s (limit 60 s); `vercel promote <url>` restored it.
 
 ## 9. Troubleshooting
-Five failures that actually happened building M0 (01-10-2026):
+Six failures that actually happened building M0 (01-10-2026):
 1. **CI red at `npx eslint .`: "typescript-eslint does not support TS 7.0".** BUILD-BRIEF pins TypeScript 7.0.2. Fix: ESLint lints JS only (`eslint.config.js`); `tsc -b` is the TypeScript gate; `typescript-eslint` removed.
 2. **Render threw "Failed to construct ImageData: input data length is not equal to 4 * width * height".** MuPDF returns 3 bytes per pixel when alpha is off. Fix: expand RGB to RGBA in `engine.worker.ts` before `createImageBitmap`.
 3. **`corpus-check` reported 0 of 25 on a machine without qpdf.** The check swallowed the missing binary as a failure. Fix: it now exits 2 with "qpdf is not installed". Real result is from CI, where qpdf is installed.
 4. **`vercel deploy --prebuilt` refused: output built for production, deploying to preview.** Fix: `vercel build --prod`, then `vercel deploy --prebuilt --prod --skip-domain` (staged, off the domain), verify, then `vercel promote`.
 5. **`vercel deploy` failed with "fetch failed ... AbortError" while uploading.** The 10.4 MB wasm upload timed out once; an immediate retry succeeded. Re-run the deploy; nothing is half-applied.
+6. **`./rollback.sh` with no argument returned success but changed nothing.** Fix: the script compares production before and after and fails; pass an explicit target.
 Also seen: `vercel.app` aliases return 302 (Vercel deployment protection), so health checks use `vercel curl`, which carries the bypass. Candidates not yet hit: a stale service worker after an update, OPFS in private windows (M1), a Tesseract path 404 (M3).
 
 ## 10. Uninstall

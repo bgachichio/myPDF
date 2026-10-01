@@ -82,7 +82,9 @@ myPDF is a full PDF editor that runs inside the browser. You open a file, then r
 2. **Dogfood log (breaks the hypothesis), for four weeks from M2.** Every PDF task the owner performs is logged, whether it was completed in myPDF or needed another tool. Pass: at least 80% completed in myPDF. Kill: under 50%.
 3. **Five problem interviews (breaks A4), by M3.** Question: "Tell me about the last time you had to edit or sign a PDF." Pass: at least 3 of 5 describe an upload concern or a workaround. Kill: 0 or 1 of 5, which means myPDF stays a personal tool with no launch effort.
 
-**Decision.** Pending; recorded in Section 12 when the results land.
+**M0 result (01-10-2026).** Experiment 1: 25 of 25 corpus files open, render page 1, save with `garbage=compact,compress` and pass real `qpdf --check` in CI (two encrypted files of unknown password are open-checked only; the AES-256 synthetic file is checked with its password). Page-1 render times 3 to 307 ms in Node; the Pixel 9 Pro cached-load timing (A3) is still untested. Verdict: persevere with MuPDF.js; the EmbedPDF fallback is not triggered. A2 (text-edit quality) and A4 (other users) stay unvalidated.
+
+**Decision.** Persevere with MuPDF.js, 01-10-2026 (Section 12). The wider pivot-or-persevere call on the hypothesis waits for the dogfood log and interviews.
 
 ## 5. Journey and friction
 
@@ -244,6 +246,7 @@ Planned at about 8 hours a week (100 hours in total). Every milestone ships some
 | 30-09-2026 | Add the house sign-off and a Support sheet (Paystack and Bitcoin). | Brian | House standard across myDownloader and Kenya Pulse. |
 | 30-09-2026 | Bitcoin support: Lightning `gachichio@walletofsatoshi.com` shown first, on-chain Taproot `bc1ptrd8ykgu046nkwjml4kvtke0vz6ga0cmhccmgkpspwuswrasjspqq6yfu6` second; checksum verified. | Brian (addresses); Claude (order) | Wallet of Satoshi charges 1.95% plus network fee to receive on-chain; Lightning is instant with near-zero fees. |
 | 30-09-2026 | No Support copy may suggest a gift size ("best for small amounts" and "for larger amounts" removed). The sign-off and Support sheet become a standing rule for every personal project (`builder` §6.1). | Brian | Size cues anchor supporters low. |
+| 01-10-2026 | M0 engine verdict: persevere with MuPDF.js (25 of 25, CI, real qpdf). M0 shell deployed to Vercel project `mypdf`; DNS CNAME for mypdf.gachichio.org pending at the DNS host. | Brian (go), Claude Code (evidence) | Corpus spike passed the 23-of-25 bar; kill threshold (under 20) not approached. |
 | 30-09-2026 | The fidelity corpus is built only from public or synthetic files; no real bank or client document ever enters the repository. | Claude, under developer §8.5 | A public AGPL repository would otherwise leak confidential data. |
 
 **Risks.**

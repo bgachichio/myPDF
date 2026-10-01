@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { resolve } from 'path'
-import { LIGHTNING_ADDRESS, BTC_ADDRESS } from './src/config/support'
+import { LIGHTNING_ADDRESS, BTC_ADDRESS } from './src/config/support.ts'
 
 // Build guard (CLAUDE.md, F15/R15): a production build fails if either receiving address is empty.
 const supportGuard = { name: 'support-guard', apply: 'build' as const, buildStart() {
