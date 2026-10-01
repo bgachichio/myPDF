@@ -74,7 +74,7 @@ Defects that reached a deployed build: 2. The missing tokens (caught at stage 5 
 
 **Public page check (seo section 8), 01-10-2026, production, Lighthouse mobile (slow 4G, 4x CPU):** Performance 97 to 98 (final deployed build), Accessibility 100, Best Practices 100, SEO 100. FCP 1.9 s, LCP 2.0 s, TBT under 50 ms, CLS 0. (A first measurement scored 71 to 86; the cause was a 352 KB font and an unsplit bundle. Fixed by subsetting Inter to Latin, 90 KB, and lazy-loading the editor screens and OCR.) Content visible without JavaScript: yes, a static first paint in `index.html`. Title, description, canonical, Open Graph, `SoftwareApplication` JSON-LD, `robots.txt` and `sitemap.xml` present. Baseline: title "myPDF: edit, sign, redact and compress PDFs privately", canonical https://mypdf.gachichio.org/, 1 indexable page.
 
-**Crawler choice (assumed, Brian to confirm):** search crawlers allowed (Googlebot, Bingbot, OAI-SearchBot, Claude-SearchBot, PerplexityBot); training crawlers blocked (GPTBot, ClaudeBot, CCBot, Google-Extended). This was the builder's default. To allow them, delete those four blocks from `public/robots.txt` and redeploy.
+**Crawler choice (confirmed by Brian, 01-10-2026):** search crawlers allowed (Googlebot, Bingbot, OAI-SearchBot, Claude-SearchBot, PerplexityBot); training crawlers blocked (GPTBot, ClaudeBot, CCBot, Google-Extended). To change it, edit `public/robots.txt` and redeploy.
 
 **Known deviations:** the engine worker is not recycled after 60 s idle (BUILD-BRIEF section 2): open documents live in the worker, and recycling would need a save and reopen cycle. A 310-page file opens and scrolls within the 200 ms limit. Revisit if memory complaints arrive.
 
