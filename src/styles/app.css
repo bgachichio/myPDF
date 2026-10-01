@@ -3,3 +3,7 @@
    tokens.css itself is not imported: its own dark rules key off data-theme and would fight the .dark class. */
 :root { --paper: #FFFFFF; --redact-mark: rgba(186, 26, 26, .13); --r-lg: 20px; --r-xl: 28px; --r-2xl: 32px; }
 .dark { --paper: #F4F4F2; }
+
+/* Shared by the static first paint in index.html and the React Home screen, so the largest text does not change when React mounts. */
+.hero-title { font-family: var(--font-narrative); font-size: 2rem; line-height: 2.5rem; font-weight: 400; text-align: center; margin: 0; }
+#root > main { max-width: 32rem; margin: 0 auto; padding: 2.5rem 1rem; background: var(--md-surface); color: var(--md-on-surface); min-height: 100vh; }

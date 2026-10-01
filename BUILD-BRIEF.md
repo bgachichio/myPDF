@@ -33,10 +33,10 @@ Isolation      : n/a
 Mock-up + plan : [x] signed off 30-09-2026
 designer.md    : READ - preflight in PRODUCT-SPEC Appendix D
 developer.md   : G0 PASS, G1 PASS (PRODUCT-SPEC Appendix B)
-DEPLOY.md      : [ ] drafted (1, 2, 3, 5, 6, 10); builder fills 4, 7, 8, 9; tested at M4
+DEPLOY.md      : [x] drafted, filled and run from a clean checkout 01-10-2026
 Architect      : Claude Chat
-Commit gate    : [ ] builder runs `pre-commit install`; CI runs `pre-commit run --all-files`
-Frontend gate  : [ ] frontend-verification six stages at M4, stage 6 on the production bundle
+Commit gate    : [x] pre-commit installed; CI runs `pre-commit run --all-files`
+Frontend gate  : [x] six stages clean 01-10-2026, stage 6 on the production bundle (DEPLOY.md section 7)
 Handover packet: [x] committed 76de001 (30-09-2026)
 Builder        : Claude Code
 ```

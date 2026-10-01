@@ -9,5 +9,8 @@ Made with ❤️ by [Brian Gachichio](https://x.com/b_gachichio). Support: [Pays
 ## Run
 `npm ci && npm run dev`. Full steps are in `DEPLOY.md` section 4.
 
+## Test
+`npm test` (unit), `npx playwright test` (end to end, one spec per requirement). `BASE_URL=https://mypdf.gachichio.org npx playwright test` runs the suite against production.
+
 ## Roll back
-`./rollback.sh`. Details are in `DEPLOY.md` section 8.
+`./rollback.sh <deployment-url>`. Details are in `DEPLOY.md` section 8.

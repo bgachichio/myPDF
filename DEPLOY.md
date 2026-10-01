@@ -57,7 +57,26 @@ curl -sI https://mypdf.gachichio.org | grep -iE 'HTTP/|content-security-policy' 
 curl -s -o /dev/null -w '%{http_code} %{content_type}\n' https://mypdf.gachichio.org/manifest.webmanifest   # 200 application/manifest+json
 curl -s -o /dev/null -w '%{http_code} %{content_type}\n' https://mypdf.gachichio.org/assets/mupdf-wasm-<hash>.wasm   # 200 application/wasm
 ```
-Observed 01-10-2026 on staged deployment `mypdf-n6nkbdzcq-gachichio.vercel.app`: `/` 200 text/html, manifest 200 application/manifest+json, wasm 200 application/wasm, `/sw.js` 200, CSP, Referrer-Policy, X-Content-Type-Options and Permissions-Policy all present. Pixel R01 share-sheet check: not applicable until M1 (the share target handler is built there); record its date here then.
+Observed 01-10-2026 on staged deployment `mypdf-n6nkbdzcq-gachichio.vercel.app`: `/` 200 text/html, manifest 200 application/manifest+json, wasm 200 application/wasm, `/sw.js` 200, CSP, Referrer-Policy, X-Content-Type-Options and Permissions-Policy all present. Pixel R01 share-sheet check (manual, Brian): install the app on the Pixel 9 Pro (Chrome, menu, Install app), open Gmail, open a message with a PDF attachment, tap Share, choose myPDF. Pass: the file opens in myPDF with its pages shown. Date and result: NOT YET RECORDED. The automated half (`tests/e2e/r01-share-open.spec.ts`) passes.
+
+**Production run, 01-10-2026.** `BASE_URL=https://mypdf.gachichio.org npx playwright test` against the live site: 32 of 32 passed (R01 to R13, R15, the stage 4 and 5 specs) and R12 offline passed separately. The same suite runs against a local build in CI.
+
+**Frontend verification, six stages, 01-10-2026** (production bundle for stage 6):
+| Stage | Result | What it caught |
+|---|---|---|
+| 1 Static | `oxlint` (react, hooks, a11y rules) and ESLint and `tsc` clean | Dock buttons built as a component inside render (the remount class), setState inside effects, hooks misnamed `use...`, effect dependencies, a ref read during render. All fixed. |
+| 2 Build | `npm run build` clean, 1.2 s | None. |
+| 3 Render | 6 jsdom tests, output dumped and read | None. Home, Settings, Support and Receipt text is free of NaN, undefined and gift-size wording. |
+| 4 Interaction | 3 specs, every field typed character by character | None. Focus held and values equal typed values, including `21.36`, `1,234.5`, `1-3, 5, 8-`. |
+| 5 Edges | 5 specs: empty, corrupt storage, one page, both themes, four text sizes, 390 px, 44 px targets, corrupt file, wrong password | Four app tokens (`--paper`, `--redact-mark`, `--r-lg`, `--r-xl`) were never loaded, so sheet corners were square and the page paper was transparent: this had shipped in the M1 to M3 deploy. Touch targets shrank below 44 px at the Compact size (rem sizing). The Canvas header and Redact bar overflowed at 390 px on Extra large. All fixed. |
+| 6 Parity | Stages 3 to 5 specs run against the minified production bundle, locally and against https://mypdf.gachichio.org | Identical results. |
+Defects that reached a deployed build: 1 (the missing tokens), caught at stage 5 on the next pass.
+
+**Public page check (seo section 8), 01-10-2026, production, Lighthouse mobile (slow 4G, 4x CPU):** Performance 98 to 99, Accessibility 100, Best Practices 100, SEO 100. FCP 1.2 to 1.8 s, LCP 1.4 to 2.0 s, TBT 0 to 40 ms, CLS 0. (A first measurement scored 71 to 86; the cause was a 352 KB font and an unsplit bundle. Fixed by subsetting Inter to Latin, 90 KB, and lazy-loading the editor screens and OCR.) Content visible without JavaScript: yes, a static first paint in `index.html`. Title, description, canonical, Open Graph, `SoftwareApplication` JSON-LD, `robots.txt` and `sitemap.xml` present. Baseline: title "myPDF: edit, sign, redact and compress PDFs privately", canonical https://mypdf.gachichio.org/, 1 indexable page.
+
+**Crawler choice (assumed, Brian to confirm):** search crawlers allowed (Googlebot, Bingbot, OAI-SearchBot, Claude-SearchBot, PerplexityBot); training crawlers blocked (GPTBot, ClaudeBot, CCBot, Google-Extended). This was the builder's default. To allow them, delete those four blocks from `public/robots.txt` and redeploy.
+
+**Known deviations:** the engine worker is not recycled after 60 s idle (BUILD-BRIEF section 2): open documents live in the worker, and recycling would need a save and reopen cycle. A 310-page file opens and scrolls within the 200 ms limit. Revisit if memory complaints arrive.
 
 ## 8. Rollback
 `./rollback.sh [deployment-url]` runs `vercel rollback --yes`, then fails loudly if production did not move. Pass a target from `npx vercel ls` (staged deployments make "previous" ambiguous: with no argument Vercel reported success while staying on the same deployment, observed 01-10-2026). Tested 01-10-2026: `./rollback.sh https://mypdf-n6nkbdzcq-gachichio.vercel.app` moved production from `mypdf-ot3x69qba` to `mypdf-n6nkbdzcq` in 18 s (limit 60 s); `vercel promote <url>` restored it.

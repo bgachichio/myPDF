@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // R15: the Support sheet, from Home and from Settings, with the exact configured values and no request until something is tapped.
 import { test, expect } from '@playwright/test'
-import { prepare } from './helpers'
+import { ORIGIN, prepare } from './helpers'
 import { BTC_ADDRESS, LIGHTNING_ADDRESS, PAYSTACK_URL, SIGN_OFF } from '../../src/config/support'
 
 test.use({ permissions: ['clipboard-read', 'clipboard-write'] })
@@ -9,7 +9,7 @@ test.use({ permissions: ['clipboard-read', 'clipboard-write'] })
 test('R15 support from Home and Settings', async ({ page, context }) => {
   await prepare(page)
   const requests: string[] = []
-  context.on('request', (r) => { if (!r.url().startsWith('http://127.0.0.1')) requests.push(r.url()) })
+  context.on('request', (r) => { if (new URL(r.url()).origin !== ORIGIN && /^https?:/.test(r.url())) requests.push(r.url()) })
   await page.goto('/')
   const signOff = page.getByTestId('home-signoff').getByRole('link')
   await expect(signOff).toHaveAttribute('href', SIGN_OFF.url)

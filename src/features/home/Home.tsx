@@ -26,7 +26,7 @@ export default function Home({ onSettings }: { onSettings: () => void }) {
 
       <main className="flex-1 flex flex-col items-center gap-6 px-4 py-10 w-full max-w-lg mx-auto">
         <FileText size={64} style={{ color: 'var(--md-primary)' }} aria-hidden="true" />
-        <h1 className="text-center" style={{ fontFamily: 'var(--font-narrative)', fontSize: '2rem', lineHeight: '2.5rem' }}>Edit any PDF. It never leaves your device.</h1>
+        <h1 className="hero-title">Edit any PDF. It never leaves your device.</h1>
         <p className="text-center text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Your file stays on this device. Drop a PDF anywhere on this page, or choose one.</p>
         <input ref={open} type="file" accept="application/pdf,.pdf,image/png,image/jpeg" hidden data-testid="file-input"
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void openFile(f) }} />

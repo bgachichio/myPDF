@@ -4,7 +4,7 @@ import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import * as mupdf from 'mupdf'
 
-export const ORIGIN = 'http://127.0.0.1:4173'
+export const ORIGIN = new URL(process.env.BASE_URL ?? 'http://127.0.0.1:4173').origin
 export const corpus = (f: string) => resolve(import.meta.dirname, '../corpus', f)
 
 /** Chromium's native save dialog would hang a headless run, so tests use the download fallback. */

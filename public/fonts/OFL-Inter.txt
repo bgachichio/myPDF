@@ -90,3 +90,5 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+
+Subset note (01-10-2026): InterVariable.woff2 is the original Inter variable font reduced to Basic Latin, Latin-1, common punctuation and the euro sign with fonttools (pyftsubset, layout features kept, opsz and wght axes kept), 352 KB to 90 KB, so the first screen is not slowed by unused scripts. Licence unchanged: see above.

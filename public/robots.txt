@@ -1,4 +1,4 @@
-# Search crawlers are welcome. Training crawlers are blocked: Brian's choice on 01-10-2026 (DEPLOY.md section 7).
+# Search crawlers are welcome. Training crawlers are blocked by default (set 01-10-2026 by the builder; Brian can change it, see DEPLOY.md section 7).
 User-agent: Googlebot
 Allow: /
 User-agent: Bingbot
