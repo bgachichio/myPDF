@@ -7,7 +7,7 @@ export interface PageInfo { index: number; width: number; height: number; rotati
 export interface SearchHit { page: number; quads: Quad[] }
 export interface SaveOptions { compress: boolean; stripMetadata: boolean; password?: string }
 
-export type AnnotationType = 'highlight' | 'underline' | 'strikeout' | 'squiggly' | 'freetext' | 'ink' | 'stamp'
+export type AnnotationType = 'highlight' | 'underline' | 'strikeout' | 'squiggly' | 'freetext' | 'ink' | 'stamp' | 'square' | 'circle' | 'note'
 export interface AnnotationInput {
   type: AnnotationType
   page: number
@@ -29,6 +29,9 @@ export interface FormField {
   options?: string[]
 }
 
+export interface OcrWord { text: string; rect: Rect }
+
+// Coordinate frame for every Rect and Quad: MuPDF page space in points, origin top-left, y down, unrotated page.
 export interface PdfEngine {
   open(bytes: ArrayBuffer, password?: string): Promise<{ id: DocId; pages: PageInfo[]; needsPassword: boolean }>
   render(id: DocId, page: number, scale: number): Promise<ImageBitmap>
@@ -51,5 +54,7 @@ export interface PdfEngine {
   stamp(id: DocId, kind: 'pageNumbers' | 'watermark', text?: string): Promise<void>
   save(id: DocId, opts: SaveOptions): Promise<Uint8Array>
   setMetadata(id: DocId, meta: Record<string, string>): Promise<void>
+  /** Added at M3 (decision log 01-10-2026): invisible OCR text layer, one entry per recognised word. Rect is in page space. */
+  addTextLayer(id: DocId, page: number, words: OcrWord[]): Promise<void>
   close(id: DocId): Promise<void>
 }
