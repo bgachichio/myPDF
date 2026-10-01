@@ -7,6 +7,9 @@ const corpus = (f: string) => resolve(import.meta.dirname, '../corpus', f)
 
 test('opens a corpus PDF, renders page 1, and makes no cross-origin request', async ({ page }) => {
   const foreign: string[] = []
+  const errors: string[] = []
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
+  page.on('pageerror', (e) => errors.push(e.message))
   page.on('request', (r) => {
     const u = new URL(r.url())
     if (!['http:', 'https:'].includes(u.protocol)) return
@@ -20,6 +23,7 @@ test('opens a corpus PDF, renders page 1, and makes no cross-origin request', as
   await page.getByLabel('Next page').click()
   await expect(page.locator('canvas[data-rendered="1"]')).toBeVisible()
   expect(foreign).toEqual([])
+  expect(errors).toEqual([]) // includes any Content-Security-Policy violation under the production headers
 })
 
 test('asks for a password on an encrypted file and opens with the right one', async ({ page }) => {

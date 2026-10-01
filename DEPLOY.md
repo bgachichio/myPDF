@@ -10,12 +10,12 @@ myPDF, a browser-only PDF editor served as static files at https://mypdf.gachich
 - qpdf 11 or later (used by the corpus check): `sudo apt-get install -y qpdf`
 - Python 3 and pre-commit: `sudo apt-get install -y pipx && pipx install pre-commit`
 - The Vercel CLI, pinned at install: `npm i -g vercel@latest`, then record the exact version in section 4
-- Accounts: GitHub `bgachichio`, and Vercel (Hobby) with project `mypdf` and domain `mypdf.gachichio.org` attached; Porkbun access for the `gachichio.org` DNS zone
+- Accounts: GitHub `bgachichio`, and Vercel (Hobby) with project `mypdf` and domain `mypdf.gachichio.org` attached; DNS access for the `gachichio.org` zone (Cloudflare, see section 2a)
 - Playwright browsers: `npx playwright install --with-deps chromium`
 
 ## 2a. Domain (one-off)
 1. `vercel domains add mypdf.gachichio.org mypdf`
-2. In Porkbun, add a record on `gachichio.org`: type CNAME, host `mypdf`, answer `cname.vercel-dns.com`, TTL 600.
+2. At the authoritative DNS host for `gachichio.org`, add: type CNAME, name `mypdf`, target `cname.vercel-dns.com`, TTL 600, proxy off (DNS only). Observed 01-10-2026: `dig NS gachichio.org` answers `lochlan.ns.cloudflare.com` and `luciana.ns.cloudflare.com`, so the record goes in Cloudflare, although `vercel domains inspect` still lists Porkbun nameservers. Vercel's own suggested alternative is `A mypdf 76.76.21.21`.
 3. `dig +short mypdf.gachichio.org` returns the Vercel target. `vercel domains inspect mypdf.gachichio.org` shows the domain as valid, with a certificate issued.
 4. Hostnames are case-insensitive, so myPDF.gachichio.org and mypdf.gachichio.org are the same site. Links and config always use lowercase.
 
@@ -23,10 +23,20 @@ myPDF, a browser-only PDF editor served as static files at https://mypdf.gachich
 None. The Paystack link and Bitcoin address in `src/config/support.ts` are public receiving identifiers, not secrets. Deploys run by hand from the Lenovo after an interactive `vercel login`. The login token lives in the Vercel CLI's own config, never in this repository, and CI holds no deploy token. `.env.example` is intentionally empty.
 
 ## 4. First run
-BUILDER FILLS: clean checkout to a running local app, with every command and its expected output, including `pre-commit install`.
+Verified 01-10-2026 on the Lenovo (Node 22.23.2, npm 10.9.8), clean `npm ci`, no flags.
+```
+git clone https://github.com/bgachichio/myPDF.git mypdf && cd mypdf
+npm ci                              # 0 vulnerabilities; no --legacy-peer-deps needed
+pre-commit install                  # hooks: gitleaks, private keys, large files, em dashes
+npm run dev                         # http://localhost:5173, tap Open PDF, choose any PDF from tests/corpus/
+npm test                            # 3 files, 11 tests, about 2 s
+npx playwright install chromium     # one-off, about 114 MB
+npx playwright test                 # 2 tests, about 10 s, runs against dist/ served with the vercel.json headers
+```
+Also needed for `node scripts/corpus-check.mjs`: `sudo apt-get install -y qpdf`. Without it the script exits 2 with a clear message and does not guess. CI installs qpdf and ran the corpus check green on 01-10-2026.
 
 ## 5. Build
-`npm ci && npm run build` produces `dist/`. The expected size is about 16 MB raw, most of it `mupdf-wasm.wasm` (10.4 MB, 3.6 MB with Brotli) plus the Tesseract core and English data (estimated at about 5 MB; the builder records the measured figure in section 4). The build must take under 60 s.
+`npm ci && npm run build` produces `dist/`. The expected size is about 16 MB raw, most of it `mupdf-wasm.wasm` (10.4 MB, 3.6 MB with Brotli) plus the Tesseract core and English data (not yet bundled; added at M3, measured then). Measured 01-10-2026 at M0: `npm run build` takes about 1.1 s; `dist/` precaches 23 entries, 10.9 MB, of which the wasm is 10.4 MB (4.8 MB gzip on the wire). Budget is under 60 s.
 
 ## 6. Deploy
 1. `git pull && npm ci && npm test && npm run build`
@@ -39,16 +49,28 @@ BUILDER FILLS: clean checkout to a running local app, with every command and its
 5. On the Pixel, open https://mypdf.gachichio.org, confirm the update prompt, and run scenario 1 from PRODUCT-SPEC Section 5.
 
 ## 7. Verify
-BUILDER FILLS: the exact URL, command and response that mean success (for example the `curl -sI` output showing the CSP), plus the Pixel R01 check with its date.
+`./deploy.sh` runs these against the staged deployment before promoting; run them by hand against production once DNS resolves:
+```
+curl -sI https://mypdf.gachichio.org | grep -iE 'HTTP/|content-security-policy'      # HTTP/2 200 and the CSP header
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' https://mypdf.gachichio.org/manifest.webmanifest   # 200 application/manifest+json
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' https://mypdf.gachichio.org/assets/mupdf-wasm-<hash>.wasm   # 200 application/wasm
+```
+Observed 01-10-2026 on staged deployment `mypdf-n6nkbdzcq-gachichio.vercel.app`: `/` 200 text/html, manifest 200 application/manifest+json, wasm 200 application/wasm, `/sw.js` 200, CSP, Referrer-Policy, X-Content-Type-Options and Permissions-Policy all present. Pixel R01 share-sheet check: not applicable until M1 (the share target handler is built there); record its date here then.
 
 ## 8. Rollback
-BUILDER FILLS: `./rollback.sh` (runs `vercel rollback` to the previous production deployment), the observed output, and the date of the last test.
+`./rollback.sh` runs `vercel rollback --yes`, which promotes the previous production deployment. Last tested: ROLLBACK_DATE.
 
 ## 9. Troubleshooting
-BUILDER FILLS: the five failures that actually happened, each with its fix. Expected candidates: a stale service worker, wasm served with the wrong MIME type, OPFS unavailable in private windows, CSP blocking a worker, and a Tesseract path 404.
+Five failures that actually happened building M0 (01-10-2026):
+1. **CI red at `npx eslint .`: "typescript-eslint does not support TS 7.0".** BUILD-BRIEF pins TypeScript 7.0.2. Fix: ESLint lints JS only (`eslint.config.js`); `tsc -b` is the TypeScript gate; `typescript-eslint` removed.
+2. **Render threw "Failed to construct ImageData: input data length is not equal to 4 * width * height".** MuPDF returns 3 bytes per pixel when alpha is off. Fix: expand RGB to RGBA in `engine.worker.ts` before `createImageBitmap`.
+3. **`corpus-check` reported 0 of 25 on a machine without qpdf.** The check swallowed the missing binary as a failure. Fix: it now exits 2 with "qpdf is not installed". Real result is from CI, where qpdf is installed.
+4. **`vercel deploy --prebuilt` refused: output built for production, deploying to preview.** Fix: `vercel build --prod`, then `vercel deploy --prebuilt --prod --skip-domain` (staged, off the domain), verify, then `vercel promote`.
+5. **`vercel deploy` failed with "fetch failed ... AbortError" while uploading.** The 10.4 MB wasm upload timed out once; an immediate retry succeeded. Re-run the deploy; nothing is half-applied.
+Also seen: `vercel.app` aliases return 302 (Vercel deployment protection), so health checks use `vercel curl`, which carries the bypass. Candidates not yet hit: a stale service worker after an update, OPFS in private windows (M1), a Tesseract path 404 (M3).
 
 ## 10. Uninstall
-1. `vercel domains rm mypdf.gachichio.org`, then delete the `mypdf` CNAME in Porkbun.
+1. `vercel domains rm mypdf.gachichio.org`, then delete the `mypdf` CNAME at the DNS host.
 2. `vercel remove mypdf --yes`.
 3. Archive the GitHub repository (Settings, Archive).
 4. There is no VM, secret file, port or registry row to release. Installed PWAs keep their local data until the user uninstalls the app.
