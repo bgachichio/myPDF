@@ -8,17 +8,18 @@ declare global {
   }
 }
 
-const blobOf = (bytes: Uint8Array) => new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' })
+const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const blobOf = (bytes: Uint8Array, kind: 'pdf' | 'docx' = 'pdf') => new Blob([bytes as unknown as BlobPart], { type: kind === 'docx' ? DOCX_TYPE : 'application/pdf' })
 
-export async function saveBytes(name: string, bytes: Uint8Array): Promise<'saved' | 'downloaded' | 'cancelled'> {
+export async function saveBytes(name: string, bytes: Uint8Array, kind: 'pdf' | 'docx' = 'pdf'): Promise<'saved' | 'downloaded' | 'cancelled'> {
   if (window.showSaveFilePicker) {
     try {
-      const handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }] })
+      const handle = await window.showSaveFilePicker({ suggestedName: name, types: [kind === 'docx' ? { description: 'Word document', accept: { [DOCX_TYPE]: ['.docx'] } } : { description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }] })
       const w = await handle.createWritable(); await w.write(bytes as unknown as BufferSource); await w.close()
       return 'saved'
     } catch (e) { if ((e as DOMException).name === 'AbortError') return 'cancelled' }
   }
-  const url = URL.createObjectURL(blobOf(bytes))
+  const url = URL.createObjectURL(blobOf(bytes, kind))
   const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
   return 'downloaded'

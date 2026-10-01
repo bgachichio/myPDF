@@ -8,3 +8,5 @@ declare module '*.css' {
 
 declare const __WASM_BYTES__: number
 declare module '*?url' { const url: string; export default url }
+
+declare module 'jsdom' { export class JSDOM { constructor(html?: string); window: { DOMParser: new () => { parseFromString(s: string, t: string): Document } & { prototype: { parseFromString(s: string, t: string): Document } } } } }

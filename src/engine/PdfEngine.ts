@@ -29,6 +29,8 @@ export interface FormField {
   options?: string[]
 }
 
+export interface WordRun { text: string; bold: boolean; italic: boolean }
+export interface WordPara { page: number; size: number; runs: WordRun[] }
 export interface OutlineEntry { title: string; page: number; depth: number }
 export interface OcrWord { text: string; rect: Rect }
 
@@ -57,6 +59,8 @@ export interface PdfEngine {
   setMetadata(id: DocId, meta: Record<string, string>): Promise<void>
   /** Added at M4 (decision log 01-10-2026): document outline (F01), flattened with nesting depth. */
   outline(id: DocId): Promise<OutlineEntry[]>
+  /** Added 01-10-2026 (decision log): the document's text as paragraphs with bold and italic runs and the largest type size, for PDF to Word export. */
+  structure(id: DocId): Promise<{ paragraphs: WordPara[]; bodySize: number }>
   /** Added at M5 (decision log 01-10-2026): Title, Author, Subject and Keywords, so the export sheet can prefill them (F10). */
   getMetadata(id: DocId): Promise<Record<string, string>>
   /** Added at M4: the word under a point, so a tap can select text. Null when the point is not on a word. */

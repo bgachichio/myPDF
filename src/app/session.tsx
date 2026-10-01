@@ -8,7 +8,6 @@ import { opfs } from '@/storage/opfs'
 import { idb } from '@/storage/idb'
 import { noteDocumentOpened } from '@/features/privacy-receipt/receipt'
 import { warmEngine } from '@/engine/mupdf/warm'
-import { check, convert, getConfig, isOffice, openCompanionSheet } from '@/features/companion/companion'
 
 export interface Session { id: string; storageId: string; name: string; pages: PageInfo[]; rev: number; marks: number; handle?: FileSystemFileHandle }
 export interface PendingPassword { name: string; bytes: Uint8Array; storageId?: string; wrong: boolean; handle?: FileSystemFileHandle }
@@ -23,7 +22,6 @@ interface SessionApi {
   canRedo: boolean
   notify: (message: string) => void
   openFile: (file: File, handle?: FileSystemFileHandle) => Promise<void>
-  convertOffice: (file: File) => Promise<void>
   openRecent: (docId: string, name: string) => Promise<void>
   openInbox: (uuid: string) => Promise<void>
   unlock: (password: string) => Promise<void>
@@ -97,24 +95,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try { await fn() } catch (e) { notify(e instanceof Error && e.message ? `${label} failed: ${e.message}` : `${label} failed`) } finally { setBusy(null) }
   }, [notify])
 
-  const convertOffice = useCallback((file: File) => guarded('Converting', async () => {
-    const cfg = getConfig()
-    if (!cfg) return openCompanionSheet(file)
-    const bytes = await convert(file, cfg)
-    await load(file.name.replace(/\.[^.]+$/, '') + '.pdf', bytes, undefined)
-  }), [guarded, load])
-
   const openFile = useCallback((file: File, handle?: FileSystemFileHandle) => guarded('Opening', async () => {
-    if (isOffice(file.name)) {
-      // Office files need the companion. If it is not running, explain how to start it; that is not an error.
-      const cfg = getConfig()
-      if (cfg && (await check(cfg)) === 'running') return void (await convertOffice(file))
-      return openCompanionSheet(file)
-    }
     if (isImage(file)) return void (await mergeFilesImpl([file]))
     await load(file.name, new Uint8Array(await file.arrayBuffer()), undefined, undefined, handle)
   // eslint-disable-next-line
-  }), [guarded, load, convertOffice])
+  }), [guarded, load])
 
   async function mergeFilesImpl(files: File[]) {
     const engine = getEngine()
@@ -236,8 +221,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<SessionApi>(() => ({
     session, busy, toast, pending, canUndo: history.current.canUndo, canRedo: history.current.canRedo,
-    notify, openFile, convertOffice, openRecent, openInbox, unlock, cancelUnlock: () => setPending(null), mergeFiles, addFiles, run, undo, redo, exportPdf, extractPages, close,
-  }), [session, busy, toast, pending, notify, openFile, convertOffice, openRecent, openInbox, unlock, mergeFiles, addFiles, run, undo, redo, exportPdf, extractPages, close])
+    notify, openFile, openRecent, openInbox, unlock, cancelUnlock: () => setPending(null), mergeFiles, addFiles, run, undo, redo, exportPdf, extractPages, close,
+  }), [session, busy, toast, pending, notify, openFile, openRecent, openInbox, unlock, mergeFiles, addFiles, run, undo, redo, exportPdf, extractPages, close])
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>
 }

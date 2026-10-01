@@ -4,25 +4,20 @@
 // Requests made inside workers are covered by the same CSP, which is the real guarantee; the R13 test proves both.
 import { useSyncExternalStore } from 'react'
 
-export interface Receipt { sameOrigin: number; otherOrigins: number; companion: number; blocked: number; documentsOpened: number; since: number }
+export interface Receipt { sameOrigin: number; otherOrigins: number; blocked: number; documentsOpened: number; since: number }
 
-let state: Receipt = { sameOrigin: 0, otherOrigins: 0, companion: 0, blocked: 0, documentsOpened: 0, since: Date.now() }
+let state: Receipt = { sameOrigin: 0, otherOrigins: 0, blocked: 0, documentsOpened: 0, since: Date.now() }
 const listeners = new Set<() => void>()
 const emit = (next: Partial<Receipt>) => { state = { ...state, ...next }; listeners.forEach((l) => l()) }
 
 export function startReceipt() {
   if (typeof PerformanceObserver === 'undefined') return
   const count = (entries: PerformanceEntryList) => {
-    let same = 0, other = 0, device = 0
+    let same = 0, other = 0
     for (const e of entries) {
-      try {
-        const u = new URL(e.name)
-        if (u.origin === location.origin) same++
-        else if (/^(127\.0\.0\.1|localhost|\[::1\])$/.test(u.hostname)) device++ // the optional companion, on this machine
-        else other++
-      } catch { /* data: and blob: URLs are local */ }
+      try { if (new URL(e.name).origin === location.origin) same++; else other++ } catch { /* data: and blob: URLs are local */ }
     }
-    if (same || other || device) emit({ sameOrigin: state.sameOrigin + same, otherOrigins: state.otherOrigins + other, companion: state.companion + device })
+    if (same || other) emit({ sameOrigin: state.sameOrigin + same, otherOrigins: state.otherOrigins + other })
   }
   count(performance.getEntriesByType('resource'))
   new PerformanceObserver((l) => count(l.getEntries())).observe({ type: 'resource', buffered: false })

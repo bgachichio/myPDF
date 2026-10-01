@@ -2,7 +2,7 @@
 // The only file that imports "mupdf" (BUILD-BRIEF section 3). Rect and Quad are MuPDF page space: points, origin top-left, y down.
 import * as Comlink from 'comlink'
 import type * as M from 'mupdf'
-import type { DocId, OutlineEntry, PageInfo, SearchHit, SaveOptions, AnnotationInput, FormField, Rect, Quad, OcrWord, PdfEngine } from '@/engine/PdfEngine'
+import type { DocId, OutlineEntry, WordPara, PageInfo, SearchHit, SaveOptions, AnnotationInput, FormField, Rect, Quad, OcrWord, PdfEngine } from '@/engine/PdfEngine'
 
 // mupdf is imported lazily: its module has a top-level await, and a worker that is still evaluating drops the first messages.
 let mupdf: typeof M
@@ -156,6 +156,45 @@ const raw: PdfEngine = {
   },
 
   async pages(id) { return pagesOf(D(id)) },
+
+  async structure(id) {
+    const doc = D(id), paragraphs: WordPara[] = []
+    const sizes = new Map<number, number>()
+    for (let i = 0; i < doc.countPages(); i++) {
+      const page = doc.loadPage(i)
+      let cur: WordPara | null = null
+      let lineStart = false
+      page.toStructuredText('preserve-whitespace').walk({
+        beginTextBlock() { cur = { page: i, size: 0, runs: [] } },
+        beginLine() { lineStart = true },
+        onChar(c, _origin, font, size) {
+          if (!cur) return
+          const bold = font.isBold() || /bold|black|heavy/i.test(font.getName()), italic = font.isItalic() || /italic|oblique/i.test(font.getName())
+          const last = cur.runs[cur.runs.length - 1]
+          let ch = c
+          if (lineStart) {
+            lineStart = false
+            if (last) {
+              // a hyphen at the end of the previous line joins the word; otherwise a line break is a space
+              if (/[a-z]-$/.test(last.text) && /[a-z]/.test(c)) last.text = last.text.slice(0, -1)
+              else if (!/\s$/.test(last.text)) ch = ' ' + c
+            }
+          }
+          if (last && last.bold === bold && last.italic === italic) last.text += ch
+          else cur.runs.push({ text: ch, bold, italic })
+          if (c.trim()) { cur.size = Math.max(cur.size, size); const k = Math.round(size * 2) / 2; sizes.set(k, (sizes.get(k) ?? 0) + 1) }
+        },
+        endTextBlock() {
+          if (cur && cur.runs.some((r) => r.text.trim())) paragraphs.push(cur)
+          cur = null
+        },
+      })
+      page.destroy()
+    }
+    let bodySize = 11, most = 0
+    for (const [k, n] of sizes) if (n > most) { most = n; bodySize = k }
+    return { paragraphs, bodySize }
+  },
 
   async outline(id) {
     const doc = D(id), out: OutlineEntry[] = []

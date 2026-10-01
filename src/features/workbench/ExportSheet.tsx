@@ -5,6 +5,7 @@ import { getEngine } from '@/engine/mupdf/client'
 import Sheet, { primaryBtn, primaryStyle, tonalBtn, tonalStyle, fieldStyle } from '@/features/common/Sheet'
 import { canShareFiles, saveBytes, saveInPlace, shareBytes } from '@/features/common/download'
 import { prefs } from '@/storage/prefs'
+import { buildDocx } from '@/features/export/docx'
 
 const META = ['Title', 'Author', 'Subject', 'Keywords'] as const
 
@@ -52,6 +53,16 @@ export default function ExportSheet({ open, onClose }: { open: boolean; onClose:
       else notify('Permission to change the original file was not given')
     } catch { notify('Could not write to the original file') } finally { setWorking(false); setConfirmReplace(false) }
   }
+  const doWord = async () => {
+    setWorking(true)
+    try {
+      const { paragraphs, bodySize } = await getEngine().structure(session.id)
+      if (!paragraphs.length) return notify('No text found. If these pages are scans, run OCR first, then try again.')
+      const bytes = buildDocx(paragraphs, bodySize, session.name.replace(/\.pdf$/i, ''))
+      const r = await saveBytes(session.name.replace(/\.pdf$/i, '') + '.docx', bytes, 'docx')
+      if (r !== 'cancelled') { notify(`Saved ${session.name.replace(/\.pdf$/i, '')}.docx (${paragraphs.length} paragraphs)`); onClose() }
+    } catch { notify('Word export failed') } finally { setWorking(false) }
+  }
   const doShare = async () => {
     setWorking(true)
     try { const ok = await shareBytes(outName, await build()); if (ok) onClose() } finally { setWorking(false) }
@@ -72,6 +83,8 @@ export default function ExportSheet({ open, onClose }: { open: boolean; onClose:
       <p className="text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Your file stays on this device. Saving does not upload anything.</p>
       <button className={primaryBtn} style={primaryStyle} disabled={working} onClick={() => void doSave()} data-testid="export-save">{working ? 'Working' : 'Save PDF'}</button>
       {handle && <button className={tonalBtn} style={confirmReplace ? { background: 'var(--md-error)', color: 'var(--md-on-error)' } : tonalStyle} disabled={working} onClick={() => void doReplace()} data-testid="export-replace">{confirmReplace ? `Tap again to replace ${handle.name}` : `Save over the original (${handle.name})`}</button>}
+      <button className={tonalBtn} style={tonalStyle} disabled={working} onClick={() => void doWord()} data-testid="export-word">Save as Word (.docx)</button>
+      <p className="text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Word export keeps text, headings, bold and italic. Tables, columns, images and exact layout are not kept.</p>
       {canShareFiles() && <button className={tonalBtn} style={tonalStyle} disabled={working} onClick={() => void doShare()}>Share</button>}
     </Sheet>
   )

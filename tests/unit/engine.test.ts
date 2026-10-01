@@ -58,6 +58,19 @@ describe('organise (M1)', () => {
     expect(await engine.textIn(id, 0, [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)])).toContain('Trace')
   })
 
+  it('structure returns paragraphs with the title as the largest type and no stray hyphen joins', async () => {
+    const { id } = await open('pdfjs-tracemonkey-text.pdf')
+    const { paragraphs, bodySize } = await engine.structure(id)
+    expect(paragraphs.length).toBeGreaterThan(40); expect(bodySize).toBeGreaterThan(5); expect(bodySize).toBeLessThan(14)
+    const title = paragraphs[0]
+    expect(title.runs.map((r) => r.text).join('')).toContain('Trace-based')
+    expect(title.size).toBeGreaterThan(bodySize * 1.25)
+    expect(new Set(paragraphs.map((p) => p.page)).size).toBeGreaterThan(10)
+    expect(paragraphs.every((p) => p.runs.every((r) => !/[a-z]- [a-z]/.test(r.text)))).toBe(true)
+    const scan = await open('synthetic-scan-5p.pdf')
+    expect((await engine.structure(scan.id)).paragraphs).toEqual([])
+  })
+
   it('wordAt finds the word under a point and nothing in empty space', async () => {
     const { id } = await open('pdfjs-tracemonkey-text.pdf')
     const q = await engine.wordAt(id, 0, [120, 87])

@@ -129,13 +129,14 @@ myPDF is a full PDF editor that runs inside the browser. You open a file, then r
 | F12 | Export and save: download, Web Share, File System Access save-in-place on desktop | Must-be |
 | F13 | Settings: Auto/Light/Dark theme defaulting to the device, a 4-step font size, default export options, all persisted in localStorage | Must-be (house standard) |
 | F14 | Delighter: a **Privacy Receipt** panel that counts network requests since launch and shows a green "0 bytes sent" badge | Attractive |
+| F16 | PDF to Word (text first): Save as Word in the Export sheet. Keeps paragraphs, headings, bold, italic and page breaks. Added 01-10-2026 | Attractive |
 | F15 | Per `builder` §6.1: house sign-off "Made with ❤️ by Brian Gachichio" (linked to x.com/b_gachichio) on Home and in Settings, and a **Support** sheet with Paystack (card or M-Pesa, paystack.shop/pay/gachichio) and Bitcoin: Lightning `gachichio@walletofsatoshi.com` first, then on-chain Taproot `bc1ptrd8…q6yfu6`, each with Copy and Open wallet | Indifferent (house standard) |
 
 **Phase 2 (local companion, opt-in).**
 
 | ID | Feature | Engine |
 |---|---|---|
-| C01 | Office to PDF (DOCX, XLSX, PPTX, ODT and HTML) | Gotenberg (MIT), wrapping LibreOffice. **Built 01-10-2026** as `companion/gateway.mjs`; uses Gotenberg when `GOTENBERG_URL` is set, else local LibreOffice |
+| C01 | ~~Office to PDF~~ **Removed 01-10-2026** (built, tested, then dropped as unnecessary) | - |
 | C02 | PDF to structured Markdown or JSON, including tables | Docling (MIT) |
 | C03 | Cryptographic PAdES signature with a local certificate | pyHanko (MIT) |
 | C04 | Heavy batch OCR and PDF/A output | OCRmyPDF (MPL-2.0) |
@@ -162,7 +163,7 @@ Each requirement below is binary. Test files come from the 25-file fidelity corp
 | R12 | As a user I work offline. | With airplane mode on after install, R03 to R11 all pass. | P1 | Must-be |
 | R13 | As a user I trust that nothing uploads. | An automated Playwright test running scenarios 1 to 3 records zero requests to any origin other than mypdf.gachichio.org, and none after the initial asset load. User-tapped links to Paystack, X, GitHub or a wallet are navigations in a new tab that carry no document data, and are excluded. | P1 | Attractive |
 | R15 | As a user I can support the project. | Tapping Support on Home or in Settings opens the Support sheet. The Paystack option opens https://paystack.shop/pay/gachichio in a new tab. Each Copy button puts the exact configured address on the clipboard (Lightning, then on-chain). Open wallet uses a `lightning:` URI for Lightning and a `bitcoin:` URI for on-chain. A unit test re-verifies the on-chain address's bech32m checksum on every build, and the production build fails if either address is empty. The sign-off link opens x.com/b_gachichio. None of these fire a request until tapped. | P2 | Indifferent |
-| R14 | As a user I use the companion when present. | With the companion running, a DOCX converts and opens. With it stopped, the DOCX option shows "Companion not running" and a set-up link, and no error. | P3 | Performance |
+| R14 (REMOVED 01-10-2026) | As a user I use the companion when present. | With the companion running, a DOCX converts and opens. With it stopped, the DOCX option shows "Companion not running" and a set-up link, and no error. | P3 | Performance |
 
 **Quality-bar states (required, not left to taste).**
 - **Empty state:** an open-file call to action with a drag target and "Your file stays on this device".
@@ -246,6 +247,7 @@ Planned at about 8 hours a week (100 hours in total). Every milestone ships some
 | 30-09-2026 | Add the house sign-off and a Support sheet (Paystack and Bitcoin). | Brian | House standard across myDownloader and Kenya Pulse. |
 | 30-09-2026 | Bitcoin support: Lightning `gachichio@walletofsatoshi.com` shown first, on-chain Taproot `bc1ptrd8ykgu046nkwjml4kvtke0vz6ga0cmhccmgkpspwuswrasjspqq6yfu6` second; checksum verified. | Brian (addresses); Claude (order) | Wallet of Satoshi charges 1.95% plus network fee to receive on-chain; Lightning is instant with near-zero fees. |
 | 30-09-2026 | No Support copy may suggest a gift size ("best for small amounts" and "for larger amounts" removed). The sign-off and Support sheet become a standing rule for every personal project (`builder` §6.1). | Brian | Size cues anchor supporters low. |
+| 01-10-2026 | Office to PDF conversion removed: the C01 companion, the R14 requirement, the Home companion card and the loopback allowance in the CSP are gone. PDF to Word added instead as a text-first export (F16): paragraphs, headings by type size, bold and italic, page breaks; tables, columns, images and layout are not kept. The whole Phase 2 companion (C01 to C04) is dropped. Engine interface gained `structure`. | Brian | "Users will be looking to edit their PDFs. If anything, a PDF to Word converter could be useful." CSP is now `connect-src 'self'`, which strengthens R13. |
 | 01-10-2026 | Post-launch gaps closed on Brian's instruction: F04 image tool, F10 four properties and decrypt, F12 save over the original, F01 file handler and pinch zoom, loading state, cross-browser projects, R14 with the C01 companion (Node gateway over LibreOffice or Gotenberg), and the app logo and icon set (a standing rule: every build ships its visuals). Engine interface gained `getMetadata`; `SaveOptions` gained `decrypt`. | Brian (instruction), Claude Code | Spec section 6 and 7 gaps listed in the 01-10-2026 audit. |
 | 01-10-2026 | Saved signatures are stored in IndexedDB as bytes plus a type instead of a Blob (older Blob records are still read). | Claude Code | WebKit failed to keep Blobs across a reload in CI; bytes are universally reliable. A storage-schema change under BUILD-BRIEF section 6, taken under the standing do-not-wait instruction. |
 | 01-10-2026 | Crawler policy confirmed by Brian (search allowed, training blocked). The old mypdfdoc.online domain was not renewed and is out of scope: no redirect, no retirement work. | Brian | Direct instruction. |
