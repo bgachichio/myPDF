@@ -19,7 +19,7 @@ export default function CompanionSheet() {
     saveConfig({ url, token })
     const s = await check()
     if (s === 'running') { setMsg(null); if (file) { closeCompanionSheet(); await convertOffice(file) } }
-    else setMsg(s === 'wrong-token' ? 'The companion is running but did not accept that token.' : 'Still no companion at that address.')
+    else setMsg(s === 'wrong-token' ? 'The companion is running but did not accept that token.' : 'Still no companion at that address. If Chrome asked about your local network, choose Allow and try again.')
   }
 
   return (
@@ -37,6 +37,7 @@ export default function CompanionSheet() {
           <input value={url} onChange={(e) => setUrl(e.target.value)} className="min-h-[44px] rounded-xl px-4" style={fieldStyle} data-testid="companion-url" /></label>
         <label className="flex flex-col gap-1"><span>Pairing token</span>
           <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} className="min-h-[44px] rounded-xl px-4" style={fieldStyle} data-testid="companion-token" /></label>
+        <p className="text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Chrome may ask whether myPDF can connect to a device on your local network. That is this program on your own computer: choose Allow.</p>
         {msg && <p role="alert" style={{ color: 'var(--md-error)' }}>{msg}</p>}
         <div className="flex gap-2 flex-wrap">
           <button className={primaryBtn} style={primaryStyle} onClick={() => void connect()} data-testid="companion-connect">Connect</button>

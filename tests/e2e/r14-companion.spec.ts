@@ -53,8 +53,9 @@ test.describe('R14 companion', () => {
     })
     test.afterAll(() => { gateway?.kill() })
 
-    test('a DOCX converts and opens, a wrong token is refused, and the receipt stays green', async ({ page }) => {
+    test('a DOCX converts and opens, a wrong token is refused, and the receipt stays green', async ({ page, context }) => {
       test.setTimeout(120_000)
+      await context.grantPermissions(['local-network-access']).catch(() => undefined) // Chrome asks once on the live site; tests answer Allow
       await prepare(page); await page.goto('/')
       await page.getByTestId('convert-office').click()
       await page.getByTestId('companion-url').fill(`http://127.0.0.1:${PORT}`); await page.getByTestId('companion-token').fill('wrong')
@@ -77,8 +78,9 @@ test.describe('R14 companion', () => {
       await expect(page.getByTestId('receipt-summary')).toContainText('Nothing you opened has left this device.')
     })
 
-    test('choosing a Word file on Home converts it directly once paired', async ({ page }) => {
+    test('choosing a Word file on Home converts it directly once paired', async ({ page, context }) => {
       test.setTimeout(120_000)
+      await context.grantPermissions(['local-network-access']).catch(() => undefined)
       await prepare(page)
       await page.addInitScript(([url, token]) => { localStorage.setItem('companion.url', url); localStorage.setItem('companion.token', token) }, [`http://127.0.0.1:${PORT}`, TOKEN])
       await page.goto('/')

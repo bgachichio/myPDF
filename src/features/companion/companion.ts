@@ -30,17 +30,18 @@ export const useCompanionState = (): CompanionState => useSyncExternalStore((l) 
 export async function check(cfg: CompanionConfig | null = getConfig()): Promise<CompanionState> {
   if (!cfg || !isLoopbackUrl(cfg.url)) { setState('unconfigured'); return 'unconfigured' }
   try {
-    const r = await fetch(`${cfg.url}/health`, { headers: { Authorization: `Bearer ${cfg.token}` }, signal: AbortSignal.timeout(2500) })
+    const r = await fetch(`${cfg.url}/health`, { headers: { Authorization: `Bearer ${cfg.token}` }, signal: AbortSignal.timeout(2500), targetAddressSpace: 'loopback' } as RequestInit)
     const s: CompanionState = r.ok ? 'running' : r.status === 401 ? 'wrong-token' : 'not-running'
     setState(s); return s
   } catch { setState('not-running'); return 'not-running' }
 }
 
 export async function convert(file: File, cfg: CompanionConfig): Promise<Uint8Array> {
+  // `targetAddressSpace` tells Chrome this is a call to a program on this same machine, so it asks the user once (Local Network Access) instead of blocking it.
   const r = await fetch(`${cfg.url}/convert`, {
-    method: 'POST', body: file, signal: AbortSignal.timeout(150_000),
+    method: 'POST', body: file, signal: AbortSignal.timeout(150_000), targetAddressSpace: 'loopback',
     headers: { Authorization: `Bearer ${cfg.token}`, 'X-Filename': encodeURIComponent(file.name), 'Content-Type': 'application/octet-stream' },
-  })
+  } as RequestInit)
   if (!r.ok) { let m = `the companion returned ${r.status}`; try { m = (await r.json()).error ?? m } catch { /* keep default */ } throw new Error(m) }
   return new Uint8Array(await r.arrayBuffer())
 }
