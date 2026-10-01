@@ -34,7 +34,7 @@ test('typing keeps focus and value in every field', async ({ page }) => {
   await page.getByTestId('export').click()
   await typeKeepingFocus(page, page.getByTestId('opt-password'), 'p@ss 1,234.5')
   await page.getByTestId('opt-strip').setChecked(false)
-  await typeKeepingFocus(page, page.getByLabel('Title (optional)'), 'Board paper, 2026-10-01')
+  await typeKeepingFocus(page, page.getByTestId('meta-title'), 'Board paper, 2026-10-01')
   await page.keyboard.press('Escape')
   // canvas: search and the redact term
   await page.getByTestId('dock-edit').click()

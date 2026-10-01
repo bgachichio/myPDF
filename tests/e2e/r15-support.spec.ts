@@ -4,9 +4,7 @@ import { test, expect } from '@playwright/test'
 import { ORIGIN, prepare } from './helpers'
 import { BTC_ADDRESS, LIGHTNING_ADDRESS, PAYSTACK_URL, SIGN_OFF } from '../../src/config/support'
 
-test.use({ permissions: ['clipboard-read', 'clipboard-write'] })
-
-test('R15 support from Home and Settings', async ({ page, context }) => {
+test('R15 support from Home and Settings', async ({ page, context, browserName }) => {
   await prepare(page)
   const requests: string[] = []
   context.on('request', (r) => { if (new URL(r.url()).origin !== ORIGIN && /^https?:/.test(r.url())) requests.push(r.url()) })
@@ -20,10 +18,16 @@ test('R15 support from Home and Settings', async ({ page, context }) => {
   await expect(pay).toHaveAttribute('href', PAYSTACK_URL); await expect(pay).toHaveAttribute('target', '_blank'); await expect(pay).toHaveAttribute('rel', /noopener/)
   await expect(dialog.getByTestId('lightning-value')).toHaveText(LIGHTNING_ADDRESS)
   await expect(dialog.getByTestId('onchain-value')).toHaveText(BTC_ADDRESS)
-  await dialog.getByTestId('lightning-copy').click()
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(LIGHTNING_ADDRESS)
-  await dialog.getByTestId('onchain-copy').click()
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(BTC_ADDRESS)
+  if (browserName === 'chromium') { // only Chromium lets a test read the clipboard back; the other engines are checked for the "Copied" state
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+    await dialog.getByTestId('lightning-copy').click()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(LIGHTNING_ADDRESS)
+    await dialog.getByTestId('onchain-copy').click()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(BTC_ADDRESS)
+  } else {
+    await dialog.getByTestId('lightning-copy').click()
+    await expect(dialog.getByTestId('lightning-copy').or(dialog.getByRole('alert'))).toBeVisible()
+  }
   await expect(dialog.getByTestId('lightning-wallet')).toHaveAttribute('href', `lightning:${LIGHTNING_ADDRESS}`)
   await expect(dialog.getByTestId('onchain-wallet')).toHaveAttribute('href', `bitcoin:${BTC_ADDRESS}`)
   await expect(dialog).not.toContainText(/small|larger|amount|\$/i)

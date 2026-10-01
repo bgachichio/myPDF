@@ -5,7 +5,7 @@ export type Quad = [number, number, number, number, number, number, number, numb
 
 export interface PageInfo { index: number; width: number; height: number; rotation: 0 | 90 | 180 | 270 }
 export interface SearchHit { page: number; quads: Quad[] }
-export interface SaveOptions { compress: boolean; stripMetadata: boolean; password?: string }
+export interface SaveOptions { compress: boolean; stripMetadata: boolean; password?: string; /** Export only: drop the opened file's old password (F10). Snapshots and recents keep it. */ decrypt?: boolean }
 
 export type AnnotationType = 'highlight' | 'underline' | 'strikeout' | 'squiggly' | 'freetext' | 'ink' | 'stamp' | 'square' | 'circle' | 'note'
 export interface AnnotationInput {
@@ -57,6 +57,8 @@ export interface PdfEngine {
   setMetadata(id: DocId, meta: Record<string, string>): Promise<void>
   /** Added at M4 (decision log 01-10-2026): document outline (F01), flattened with nesting depth. */
   outline(id: DocId): Promise<OutlineEntry[]>
+  /** Added at M5 (decision log 01-10-2026): Title, Author, Subject and Keywords, so the export sheet can prefill them (F10). */
+  getMetadata(id: DocId): Promise<Record<string, string>>
   /** Added at M4: the word under a point, so a tap can select text. Null when the point is not on a word. */
   wordAt(id: DocId, page: number, point: [number, number]): Promise<Quad | null>
   /** Added at M1 (decision log 01-10-2026): current page list after edits. */

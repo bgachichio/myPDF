@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config'
 import { resolve } from 'path'
 
 export default defineConfig({
+  define: { __WASM_BYTES__: 10409826 },
   test: {
     environment: 'jsdom',
     globals: true,

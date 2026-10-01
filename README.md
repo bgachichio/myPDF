@@ -1,3 +1,5 @@
+<p align="center"><img src="brand/logo.svg" alt="myPDF" width="280"></p>
+
 # myPDF
 
 https://mypdf.gachichio.org

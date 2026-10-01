@@ -78,6 +78,12 @@ Defects that reached a deployed build: 2. The missing tokens (caught at stage 5 
 
 **Known deviations:** the engine worker is not recycled after 60 s idle (BUILD-BRIEF section 2): open documents live in the worker, and recycling would need a save and reopen cycle. A 310-page file opens and scrolls within the 200 ms limit. Revisit if memory complaints arrive.
 
+**Post-launch gap closure, 01-10-2026:**
+- **Brand:** logo, icon set (SVG, 192, 512, maskable, Apple touch, favicons, ICO), social card and three install-prompt screenshots, generated from `brand/` (see `brand/README.md`). Tested: `m5-gaps.spec.ts` "brand assets" checks the logo renders and every file the manifest names returns 200.
+- **Cross-browser:** the full Playwright suite runs on Chromium (covers Edge's engine), Firefox and WebKit (`--project=firefox`, `--project=webkit`). Firefox passes locally. WebKit cannot run on the Lenovo (it needs a system library, `libavif16`, which needs sudo), so WebKit runs in CI, which installs it with `--with-deps`. Clipboard read-back and the touch pinch test run on Chromium only (the other engines do not expose those test hooks).
+- **Companion (R14, C01):** `companion/gateway.mjs` (Node, no dependencies, LibreOffice or Gotenberg behind it). Tested against real LibreOffice: a DOCX converts in about 1.5 s. Running it: `companion/README.md`. The Gotenberg compose file (`companion/compose.yaml`) was written but NOT run on the Lenovo: only 1.5 GB of memory was free, below the 2 GB floor in builder section 3.2. CI installs `libreoffice-writer-nogui` to run the real conversion test.
+- **F04** Image tool; **F10** Title, Author, Subject, Keywords, plus decrypt on export; **F12** Save over the original (desktop, two-tap confirm); **F01** desktop file handler, contents list, pinch and Ctrl+wheel zoom; first-run loading percentage and page skeletons.
+
 ## 8. Rollback
 `./rollback.sh [deployment-url]` runs `vercel rollback --yes`, then fails loudly if production did not move. Pass a target from `npx vercel ls` (staged deployments make "previous" ambiguous: with no argument Vercel reported success while staying on the same deployment, observed 01-10-2026). Tested 01-10-2026: `./rollback.sh https://mypdf-n6nkbdzcq-gachichio.vercel.app` moved production from `mypdf-ot3x69qba` to `mypdf-n6nkbdzcq` in 18 s (limit 60 s); `vercel promote <url>` restored it.
 

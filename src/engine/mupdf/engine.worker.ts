@@ -419,8 +419,16 @@ const raw: PdfEngine = {
     if (opts.compress) await downscaleImages(doc)
     const parts: string[] = []
     if (opts.compress) parts.push('garbage=compact', 'compress')
+    // MuPDF keeps an opened file's old encryption unless told otherwise, so an export without a password decrypts (F10).
     if (opts.password) parts.push('encrypt=aes-256', `user-password=${opts.password}`, `owner-password=${opts.password}`)
+    else if (opts.decrypt) parts.push('encrypt=none')
     return doc.saveToBuffer(parts.join(',')).asUint8Array().slice()
+  },
+
+  async getMetadata(id) {
+    const doc = D(id), out: Record<string, string> = {}
+    for (const k of ['Title', 'Author', 'Subject', 'Keywords']) out[k] = doc.getMetaData(`info:${k}`) ?? ''
+    return out
   },
 
   async setMetadata(id, meta) {

@@ -14,6 +14,7 @@ test('R06 sign, keep, and reuse after reload', async ({ page }) => {
   await expect(page.getByRole('status').filter({ hasText: 'Tap where the signature goes' })).toBeVisible({ timeout: 15_000 })
   const box = (await page.getByTestId('overlay').boundingBox())!
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 3)
+  await expect(page.getByTestId('undo')).toBeEnabled({ timeout: 15_000 })
   await expect(page.getByTestId('busy')).toHaveCount(0, { timeout: 15_000 })
   await page.getByLabel('Back to pages').click()
   const d = docOf(await exportPdf(page))

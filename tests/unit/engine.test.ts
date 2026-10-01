@@ -81,6 +81,19 @@ describe('organise (M1)', () => {
     for (const e of real) { expect(typeof e.title).toBe('string'); expect(e.page).toBeGreaterThanOrEqual(0); expect(e.depth).toBeGreaterThanOrEqual(0) }
   })
 
+  it('F10: reads and writes Title, Author, Subject and Keywords; decrypting drops the password', async () => {
+    const { id } = await open('pdfjs-basicapi.pdf')
+    await engine.setMetadata(id, { Title: 'T1', Author: 'A1', Subject: 'S1', Keywords: 'k1, k2' })
+    expect(await engine.getMetadata(id)).toEqual({ Title: 'T1', Author: 'A1', Subject: 'S1', Keywords: 'k1, k2' })
+    const out = reopen(await engine.save(id, { compress: false, stripMetadata: false }))
+    expect(['Title', 'Author', 'Subject', 'Keywords'].map((k) => out.getMetaData(`info:${k}`))).toEqual(['T1', 'A1', 'S1', 'k1, k2'])
+    const enc = await open('synthetic-encrypted-aes256.pdf', 'testpass')
+    expect(mupdf.Document.openDocument(await engine.save(enc.id, { compress: false, stripMetadata: false }), 'application/pdf').needsPassword()).toBe(true) // snapshots keep the password
+    const plain = mupdf.Document.openDocument(await engine.save(enc.id, { compress: false, stripMetadata: false, decrypt: true }), 'application/pdf')
+    expect(plain.needsPassword()).toBe(false)
+    expect(plain.countPages()).toBe(3)
+  })
+
   it('reports a repaired file on open', async () => {
     const good = corpus('pdfjs-basicapi.pdf')
     const broken = Buffer.from(good.toString('latin1').replace(/startxref\s+\d+/g, 'startxref\n999999'), 'latin1')

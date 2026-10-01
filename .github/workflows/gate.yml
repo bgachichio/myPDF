@@ -35,4 +35,4 @@ jobs:
       - if: steps.app.outputs.present == 'true' && hashFiles('scripts/corpus-check.mjs') != ''
         run: sudo apt-get install -y qpdf && node scripts/corpus-check.mjs
       - if: steps.app.outputs.present == 'true' && hashFiles('playwright.config.*') != ''
-        run: npx playwright install --with-deps chromium && npx playwright test
+        run: sudo apt-get install -y --no-install-recommends libreoffice-writer-nogui && npx playwright install --with-deps chromium firefox webkit && npx playwright test

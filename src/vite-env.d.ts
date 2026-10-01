@@ -5,3 +5,6 @@ declare module '*.css' {
   const content: string
   export default content
 }
+
+declare const __WASM_BYTES__: number
+declare module '*?url' { const url: string; export default url }

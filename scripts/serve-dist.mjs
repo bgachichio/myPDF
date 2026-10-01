@@ -8,7 +8,7 @@ import { extname, join, resolve } from 'path'
 const root = resolve(import.meta.dirname, '../dist')
 const config = JSON.parse(readFileSync(resolve(import.meta.dirname, '../vercel.json'), 'utf8'))
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript', '.css': 'text/css', '.wasm': 'application/wasm', '.json': 'application/json',
-  '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.woff2': 'font/woff2', '.txt': 'text/plain' }
+  '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.woff2': 'font/woff2', '.txt': 'text/plain', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.xml': 'application/xml', '.gz': 'application/gzip' }
 
 createServer((req, res) => {
   const path = decodeURIComponent(new URL(req.url, 'http://x').pathname)

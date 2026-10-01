@@ -39,7 +39,7 @@ function Thumb({ docId, rev, index, width, height }: ThumbProps) {
 
   return (
     <div ref={host} className="w-full rounded-lg overflow-hidden" style={{ aspectRatio: `${width} / ${height}`, background: 'var(--paper)', boxShadow: '0 0 0 1px var(--md-outline-variant)' }}>
-      <canvas ref={canvas} className="w-full h-full block" data-ready={ready ? 'true' : 'false'} aria-hidden="true" />
+      <canvas ref={canvas} className={`w-full h-full block${ready ? '' : ' skeleton'}`} data-ready={ready ? 'true' : 'false'} aria-hidden="true" />
     </div>
   )
 }

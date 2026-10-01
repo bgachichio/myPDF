@@ -8,6 +8,7 @@ const Workbench = lazy(() => import('@/features/workbench/Workbench'))
 const Canvas = lazy(() => import('@/features/canvas/Canvas'))
 import SettingsSheet from '@/features/settings/SettingsSheet'
 import PasswordSheet from '@/features/common/PasswordSheet'
+import CompanionSheet from '@/features/companion/CompanionSheet'
 
 interface LaunchQueue { setConsumer(cb: (params: { files: FileSystemFileHandle[] }) => void): void }
 
@@ -24,7 +25,7 @@ function Shell() {
     if (m) { history.replaceState(null, '', '/'); void openInbox(m[1]) }
     else if (q === 'failed') { history.replaceState(null, '', '/'); notify('The shared file could not be received. Open myPDF and choose the file instead.') }
     // desktop file handler (file_handlers in the manifest)
-    ;(window as unknown as { launchQueue?: LaunchQueue }).launchQueue?.setConsumer(async ({ files }) => { if (files[0]) void openFile(await files[0].getFile()) })
+    ;(window as unknown as { launchQueue?: LaunchQueue }).launchQueue?.setConsumer(async ({ files }) => { if (files[0]) void openFile(await files[0].getFile(), files[0]) })
   }, [openInbox, openFile, notify])
 
   // Drag and drop anywhere (F01).
@@ -55,6 +56,7 @@ function Shell() {
       </Suspense>
       <SettingsSheet open={settings} onClose={() => setSettings(false)} />
       <PasswordSheet />
+      <CompanionSheet />
       {busy && <output className="block fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-2 rounded-full text-sm" style={{ background: 'var(--md-inverse-surface)', color: 'var(--md-inverse-on-surface)' }} data-testid="busy">{busy}</output>}
       {toast && <output aria-live="polite" className="block fixed bottom-24 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-5 py-3 rounded-2xl text-sm" style={{ background: 'var(--md-inverse-surface)', color: 'var(--md-inverse-on-surface)' }} data-testid="toast">{toast}</output>}
       {dropping && <div className="fixed inset-0 z-50 flex items-center justify-center text-xl pointer-events-none" style={{ background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', opacity: 0.92 }}>Drop a PDF to open it</div>}

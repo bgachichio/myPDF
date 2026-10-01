@@ -25,6 +25,7 @@ export default function PrivacyReceipt() {
         <dl>
           {row('Documents opened', r.documentsOpened, 'receipt-docs')}
           {row('Requests to other sites', r.otherOrigins, 'receipt-other')}
+          {row('Requests to the helper program on this device', r.companion, 'receipt-companion')}
           {row('Requests blocked by the security policy', r.blocked, 'receipt-blocked')}
           {row('App files loaded from mypdf.gachichio.org', r.sameOrigin, 'receipt-same')}
         </dl>

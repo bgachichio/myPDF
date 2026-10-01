@@ -2,7 +2,10 @@
 // Export paths (F12): File System Access save on desktop, Web Share where files can be shared, otherwise a download.
 
 declare global {
-  interface Window { showSaveFilePicker?: (o: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle> }
+  interface Window {
+    showOpenFilePicker?: (o: { types: { description: string; accept: Record<string, string[]> }[]; multiple?: boolean }) => Promise<FileSystemFileHandle[]>
+    showSaveFilePicker?: (o: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }) => Promise<FileSystemFileHandle>
+  }
 }
 
 const blobOf = (bytes: Uint8Array) => new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' })
@@ -26,4 +29,12 @@ export function canShareFiles(): boolean {
 }
 export async function shareBytes(name: string, bytes: Uint8Array): Promise<boolean> {
   try { await navigator.share({ files: [new File([blobOf(bytes)], name, { type: 'application/pdf' })] }); return true } catch { return false }
+}
+
+/** Write bytes back to the file the user opened (F12, desktop). Asks for permission when the browser needs it. */
+export async function saveInPlace(handle: FileSystemFileHandle, bytes: Uint8Array): Promise<boolean> {
+  const h = handle as FileSystemFileHandle & { requestPermission?: (o: { mode: 'readwrite' }) => Promise<PermissionState> }
+  if (h.requestPermission && (await h.requestPermission({ mode: 'readwrite' })) !== 'granted') return false
+  const w = await handle.createWritable(); await w.write(bytes as unknown as BufferSource); await w.close()
+  return true
 }

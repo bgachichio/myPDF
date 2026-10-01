@@ -7,9 +7,11 @@ import { UndoStack, type Snapshot } from '@/history/undo'
 import { opfs } from '@/storage/opfs'
 import { idb } from '@/storage/idb'
 import { noteDocumentOpened } from '@/features/privacy-receipt/receipt'
+import { warmEngine } from '@/engine/mupdf/warm'
+import { check, convert, getConfig, isOffice, openCompanionSheet } from '@/features/companion/companion'
 
-export interface Session { id: string; storageId: string; name: string; pages: PageInfo[]; rev: number; marks: number }
-export interface PendingPassword { name: string; bytes: Uint8Array; storageId?: string; wrong: boolean }
+export interface Session { id: string; storageId: string; name: string; pages: PageInfo[]; rev: number; marks: number; handle?: FileSystemFileHandle }
+export interface PendingPassword { name: string; bytes: Uint8Array; storageId?: string; wrong: boolean; handle?: FileSystemFileHandle }
 type Engine = ReturnType<typeof getEngine>
 
 interface SessionApi {
@@ -20,7 +22,8 @@ interface SessionApi {
   canUndo: boolean
   canRedo: boolean
   notify: (message: string) => void
-  openFile: (file: File) => Promise<void>
+  openFile: (file: File, handle?: FileSystemFileHandle) => Promise<void>
+  convertOffice: (file: File) => Promise<void>
   openRecent: (docId: string, name: string) => Promise<void>
   openInbox: (uuid: string) => Promise<void>
   unlock: (password: string) => Promise<void>
@@ -67,18 +70,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }, 800)
   }, [])
 
-  const load = useCallback(async (name: string, bytes: Uint8Array, storageId: string | undefined, password?: string) => {
+  const load = useCallback(async (name: string, bytes: Uint8Array, storageId: string | undefined, password?: string, handle?: FileSystemFileHandle) => {
     if (bytes.length > 250 * 1024 * 1024) throw new Error('Files over 250 MB are not supported')
     const engine = getEngine()
     const prev = sessionRef.current
+    const started = Date.now()
+    await warmEngine((p) => { if (Date.now() - started > 300) setBusy(`Loading the editor ${p}%`) })
+    setBusy('Opening')
     const res = await engine.open(Comlink.transfer(own(bytes), [own(bytes)]) as ArrayBuffer, password)
-    if (res.needsPassword && !res.id) { setPending({ name, bytes, storageId, wrong: Boolean(password) }); return false }
+    if (res.needsPassword && !res.id) { setPending({ name, bytes, storageId, wrong: Boolean(password), handle }); return false }
     if (res.pages.length > 5000) { void engine.close(res.id); throw new Error('Files over 5,000 pages are not supported') }
     if (prev) void engine.close(prev.id)
     const sid = storageId ?? crypto.randomUUID()
     if (!storageId) await opfs.write(['docs', sid], 'original.pdf', bytes)
     history.current.clear()
-    apply({ id: res.id, storageId: sid, name, pages: res.pages, rev: 0, marks: 0 })
+    apply({ id: res.id, storageId: sid, name, pages: res.pages, rev: 0, marks: 0, handle })
     setPending(null)
     persistSoon()
     noteDocumentOpened()
@@ -91,11 +97,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try { await fn() } catch (e) { notify(e instanceof Error && e.message ? `${label} failed: ${e.message}` : `${label} failed`) } finally { setBusy(null) }
   }, [notify])
 
-  const openFile = useCallback((file: File) => guarded('Opening', async () => {
-    if (isImage(file)) return void (await mergeFilesImpl([file]))
-    await load(file.name, new Uint8Array(await file.arrayBuffer()), undefined)
-  // eslint-disable-next-line
+  const convertOffice = useCallback((file: File) => guarded('Converting', async () => {
+    const cfg = getConfig()
+    if (!cfg) return openCompanionSheet(file)
+    const bytes = await convert(file, cfg)
+    await load(file.name.replace(/\.[^.]+$/, '') + '.pdf', bytes, undefined)
   }), [guarded, load])
+
+  const openFile = useCallback((file: File, handle?: FileSystemFileHandle) => guarded('Opening', async () => {
+    if (isOffice(file.name)) {
+      // Office files need the companion. If it is not running, explain how to start it; that is not an error.
+      const cfg = getConfig()
+      if (cfg && (await check(cfg)) === 'running') return void (await convertOffice(file))
+      return openCompanionSheet(file)
+    }
+    if (isImage(file)) return void (await mergeFilesImpl([file]))
+    await load(file.name, new Uint8Array(await file.arrayBuffer()), undefined, undefined, handle)
+  // eslint-disable-next-line
+  }), [guarded, load, convertOffice])
 
   async function mergeFilesImpl(files: File[]) {
     const engine = getEngine()
@@ -158,7 +177,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback(async (password: string) => {
     const p = pending; if (!p) return
-    await guarded('Unlocking', async () => { await load(p.name, p.bytes, p.storageId, password) })
+    await guarded('Unlocking', async () => { await load(p.name, p.bytes, p.storageId, password, p.handle) })
   }, [pending, guarded, load])
 
   async function runCore(fn: (engine: Engine, id: string) => Promise<void>, opts?: { marks?: number }) {
@@ -217,8 +236,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<SessionApi>(() => ({
     session, busy, toast, pending, canUndo: history.current.canUndo, canRedo: history.current.canRedo,
-    notify, openFile, openRecent, openInbox, unlock, cancelUnlock: () => setPending(null), mergeFiles, addFiles, run, undo, redo, exportPdf, extractPages, close,
-  }), [session, busy, toast, pending, notify, openFile, openRecent, openInbox, unlock, mergeFiles, addFiles, run, undo, redo, exportPdf, extractPages, close])
+    notify, openFile, convertOffice, openRecent, openInbox, unlock, cancelUnlock: () => setPending(null), mergeFiles, addFiles, run, undo, redo, exportPdf, extractPages, close,
+  }), [session, busy, toast, pending, notify, openFile, convertOffice, openRecent, openInbox, unlock, mergeFiles, addFiles, run, undo, redo, exportPdf, extractPages, close])
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>
 }

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, MousePointer2, Type, Highlighter, PenLine, Signature, EyeOff, TextCursorInput, Undo2, Redo2, Search, Settings, ListTree } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, MousePointer2, Type, Highlighter, PenLine, Signature, EyeOff, TextCursorInput, Undo2, Redo2, Search, Settings, ListTree, ImagePlus } from 'lucide-react'
 import { useSession } from '@/app/session'
 import { getEngine } from '@/engine/mupdf/client'
 import type { AnnotationType, FormField, OutlineEntry, Quad, Rect, SearchHit } from '@/engine/PdfEngine'
 import Sheet, { primaryBtn, primaryStyle, tonalBtn, tonalStyle, fieldStyle } from '@/features/common/Sheet'
 import SignSheet from '@/features/canvas/SignSheet'
 
-type Tool = 'select' | 'edit' | 'markup' | 'draw' | 'sign' | 'redact' | 'fields'
+type Tool = 'select' | 'edit' | 'markup' | 'draw' | 'sign' | 'image' | 'redact' | 'fields'
 type Markup = 'highlight' | 'underline' | 'strikeout' | 'freetext' | 'square' | 'circle' | 'note'
 type Pop = null | { kind: 'edit'; rect: Rect; value: string } | { kind: 'text'; rect: Rect; value: string; note: boolean }
 
@@ -34,6 +34,9 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
   const [fields, setFields] = useState<FormField[]>([])
   const [vw, setVw] = useState(window.innerWidth)
   const [contents, setContents] = useState<OutlineEntry[] | null>(null)
+  const mainRef = useRef<HTMLElement>(null)
+  const zoomRef = useRef(1)
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
   const canvas = useRef<HTMLCanvasElement>(null)
   const overlay = useRef<HTMLDivElement>(null)
   const start = useRef<[number, number] | null>(null)
@@ -63,6 +66,20 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
     if (!session || tool !== 'fields') return
     void getEngine().fields(session.id).then(setFields).catch(() => setFields([]))
   }, [session, tool])
+
+  // Pinch (two fingers) and Ctrl+wheel zoom the page (F01). A second finger cancels any drag the first one started.
+  useEffect(() => {
+    const el = mainRef.current; if (!el) return
+    const clamp = (z: number) => Math.min(4, Math.max(0.5, +z.toFixed(2)))
+    let startDist = 0, startZoom = 1
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+    const onStart = (e: TouchEvent) => { if (e.touches.length === 2) { startDist = dist(e.touches); startZoom = zoomRef.current; start.current = null; setDraft(null); setInk([]) } }
+    const onMove = (e: TouchEvent) => { if (e.touches.length === 2 && startDist) { e.preventDefault(); setZoom(clamp(startZoom * (dist(e.touches) / startDist))) } }
+    const onEnd = (e: TouchEvent) => { if (e.touches.length < 2) startDist = 0 }
+    const onWheel = (e: WheelEvent) => { if (e.ctrlKey) { e.preventDefault(); setZoom((z) => clamp(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1))) } }
+    el.addEventListener('touchstart', onStart, { passive: true }); el.addEventListener('touchmove', onMove, { passive: false }); el.addEventListener('touchend', onEnd); el.addEventListener('wheel', onWheel, { passive: false })
+    return () => { el.removeEventListener('touchstart', onStart); el.removeEventListener('touchmove', onMove); el.removeEventListener('touchend', onEnd); el.removeEventListener('wheel', onWheel) }
+  }, [info])
 
   const go = useCallback((p: number) => { if (session) setPage(Math.max(0, Math.min(session.pages.length - 1, p))) }, [session])
   useEffect(() => {
@@ -109,13 +126,14 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
   const placeSignature = async (rect: Rect) => {
     if (!armed) return
     const png = armed.png
-    await run('Signing', (e, id) => e.placeImage(id, page, rect, png))
+    await run(tool === 'image' ? 'Adding image' : 'Signing', (e, id) => e.placeImage(id, page, rect, png))
     setArmed(null)
   }
 
   const onDown = (e: React.PointerEvent) => {
     if (tool === 'select' || tool === 'fields') return
     if (tool === 'sign' && !armed) return setSignOpen(true)
+    if (tool === 'image' && !armed) return void document.getElementById('insert-image')?.click()
     overlay.current!.setPointerCapture(e.pointerId)
     start.current = at(e)
     if (tool === 'draw') setInk([at(e)])
@@ -139,7 +157,7 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
       if (q) { r = boxOf(q); tiny = false }
     }
     if (tool === 'draw') { const pts = ink; setInk([]); if (pts.length > 1) await annotate('ink', { inkList: [pts], color: '#1a3fb0' }); return }
-    if (tool === 'sign' && armed) {
+    if ((tool === 'sign' || tool === 'image') && armed) {
       const w = tiny ? 150 : r[2] - r[0], h = tiny ? 150 * armed.ratio : r[3] - r[1]
       return placeSignature(tiny ? [end[0] - w / 2, end[1] - h / 2, end[0] + w / 2, end[1] + h / 2] : r)
     }
@@ -164,7 +182,7 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
     <button key={t} aria-pressed={tool === t} data-testid={`tool-${t}`} disabled={Boolean(busy)}
       className="flex flex-col items-center justify-center gap-1 min-w-[56px] min-h-[56px] px-2 rounded-xl text-xs font-medium"
       style={tool === t ? { background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)' } : undefined}
-      onClick={() => { setTool(t); setDraft(null); if (t === 'sign') setSignOpen(true) }}>{icon}<span>{label}</span></button>
+      onClick={() => { setTool(t); setDraft(null); setArmed(null); if (t === 'sign') setSignOpen(true); if (t === 'image') document.getElementById('insert-image')?.click() }}>{icon}<span>{label}</span></button>
   )
   const iconBtn = 'flex items-center justify-center rounded-full w-[44px] h-[44px] shrink-0 disabled:opacity-40'
   const pageHits = hits?.find((h) => h.page === page)
@@ -202,6 +220,8 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
       {tool === 'edit' && <p className="px-4 py-2 text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Tap a word, or drag across several, to change them. Edits stay on one line.</p>}
       {tool === 'draw' && <p className="px-4 py-2 text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Draw with your finger or mouse.</p>}
       {tool === 'sign' && armed && <p className="px-4 py-2 text-sm" role="status">Tap where the signature goes, or drag a box.</p>}
+      {tool === 'image' && <p className="px-4 py-2 text-sm" role="status" data-testid="image-hint">{armed ? 'Tap where the image goes, or drag a box.' : 'Tap the page to choose a picture (PNG or JPEG).'}</p>}
+      <input id="insert-image" type="file" hidden accept="image/png,image/jpeg" data-testid="insert-image" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; const bm = await createImageBitmap(f); setArmed({ png: f, ratio: bm.height / bm.width }); bm.close() }} />
       {tool === 'redact' && (
         <div className="px-4 py-3 flex flex-col gap-2" style={{ background: 'var(--md-error-container)', color: 'var(--md-on-error-container)' }}>
           <p className="text-sm font-medium" data-testid="redact-banner">{marks} {marks === 1 ? 'area' : 'areas'} marked. Drag a box over anything to remove, or find text below. Nothing is removed until you apply.</p>
@@ -220,7 +240,7 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
         </div>
       )}
 
-      <main className="flex-1 overflow-auto flex justify-center px-4 py-4 pb-28">
+      <main ref={mainRef} className="flex-1 overflow-auto flex justify-center px-4 py-4 pb-28" style={{ touchAction: 'pan-x pan-y' }}>
         <div style={{ width: info.width * s, height: info.height * s, position: 'relative', flex: 'none', background: 'var(--paper)', boxShadow: '0 2px 8px rgba(0,0,0,.25)' }}>
           <canvas ref={canvas} data-testid="page-canvas" aria-label={`Page ${page + 1}`} style={{ width: '100%', height: '100%', display: 'block' }} />
           <div ref={overlay} data-testid="overlay" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={(e) => void onUp(e)} onPointerCancel={() => { start.current = null; setDraft(null); setInk([]) }}
@@ -241,6 +261,7 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
       </main>
 
       <div className="fixed right-3 bottom-[88px] z-30 flex flex-col gap-2" role="group" aria-label="Zoom">
+        <span className="text-xs text-center rounded-full px-2 py-1" style={{ background: 'var(--md-surface-container-high)' }} data-testid="zoom-level" aria-live="polite">{Math.round(zoom * 100)}%</span>
         <button aria-label="Zoom in" className={`${iconBtn} shadow-md`} style={{ background: 'var(--md-surface-container-high)' }} onClick={() => setZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))}><ZoomIn size={22} /></button>
         <button aria-label="Zoom out" className={`${iconBtn} shadow-md`} style={{ background: 'var(--md-surface-container-high)' }} onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}><ZoomOut size={22} /></button>
       </div>
@@ -251,6 +272,7 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
         {toolBtn('markup', <Highlighter size={22} />, 'Mark up')}
         {toolBtn('draw', <PenLine size={22} />, 'Draw')}
         {toolBtn('sign', <Signature size={22} />, 'Sign')}
+        {toolBtn('image', <ImagePlus size={22} />, 'Image')}
         {toolBtn('redact', <EyeOff size={22} />, 'Redact')}
         {toolBtn('fields', <TextCursorInput size={22} />, 'Fields')}
       </nav>
