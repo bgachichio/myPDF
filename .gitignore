@@ -7,3 +7,9 @@ playwright-report/
 *.local
 # never commit real documents: only files listed in tests/corpus/MANIFEST.md
 tests/corpus/private/
+
+# build and tool state
+*.tsbuildinfo
+.claude/worktrees/
+.claude/settings.local.json
+.vercel/
