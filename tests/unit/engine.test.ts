@@ -51,6 +51,13 @@ describe('organise (M1)', () => {
     expect(await engine.search(id, 'zzzqqqxxx')).toEqual([])
   })
 
+  it('textIn returns the words under a search hit rectangle', async () => {
+    const { id } = await open('pdfjs-tracemonkey-text.pdf')
+    const q = (await engine.search(id, 'Trace-based'))[0].quads[0]
+    const xs = [q[0], q[2], q[4], q[6]], ys = [q[1], q[3], q[5], q[7]]
+    expect(await engine.textIn(id, 0, [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)])).toContain('Trace')
+  })
+
   it('R03: merges three files and moves page 5 to position 1', async () => {
     const a = await open('pdfjs-tracemonkey-text.pdf'), b = await open('pdfjs-basicapi.pdf'), c = await open('synthetic-image-heavy-8p.pdf')
     await engine.merge(a.id, b.id, 14)

@@ -159,7 +159,9 @@ const raw: PdfEngine = {
 
   async textIn(id, page, rect) {
     const p = D(id).loadPage(page)
-    const t = p.toStructuredText('preserve-whitespace').copy([rect[0], rect[1]], [rect[2], rect[3]]).trim()
+    // copy() selects in reading order between two points; for a one-line drag the mid-line is the reliable path through the glyphs.
+    const oneLine = rect[3] - rect[1] < 30, midY = (rect[1] + rect[3]) / 2
+    const t = p.toStructuredText('preserve-whitespace').copy([rect[0], oneLine ? midY : rect[1]], [rect[2], oneLine ? midY : rect[3]]).trim()
     p.destroy()
     return t
   },

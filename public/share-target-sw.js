@@ -17,7 +17,7 @@ self.addEventListener('fetch', (event) => {
       await writer.write(file)
       await writer.close()
       return Response.redirect('/?open=inbox/' + id, 303)
-    } catch (e) {
+    } catch {
       return Response.redirect('/', 303)
     }
   })())
