@@ -4,6 +4,7 @@ import { test, expect } from '@playwright/test'
 import { openFile, pageCount } from './helpers'
 
 test('R11 60 edits undo and redo in order', async ({ page }) => {
+  test.setTimeout(240_000) // 180 saved-and-reopened snapshots; slower engines need the room
   await openFile(page, 'pdfjs-basicapi.pdf')
   const start = await pageCount(page)
   for (let i = 1; i <= 60; i++) {

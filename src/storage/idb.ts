@@ -3,6 +3,8 @@
 
 export interface Recent { docId: string; name: string; pages: number; updatedAt: number }
 export interface SavedSignature { id: string; kind: 'draw' | 'type' | 'image'; png: Blob; createdAt: number }
+// Stored as raw bytes plus a type: Safari and WebKit are unreliable at keeping Blobs in IndexedDB (decision log 01-10-2026). Older records that hold a Blob are still read.
+interface StoredSignature { id: string; kind: SavedSignature['kind']; bytes?: ArrayBuffer; type?: string; png?: Blob; createdAt: number }
 
 function db(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -33,10 +35,15 @@ export const idb = {
     const all = (await tx<Recent[]>('recents', 'readonly', (s) => s.getAll())) ?? []
     return all.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 12)
   },
-  putSignature: (s: SavedSignature) => tx('signatures', 'readwrite', (st) => st.put(s)),
+  async putSignature(sig: SavedSignature) {
+    const rec: StoredSignature = { id: sig.id, kind: sig.kind, bytes: await sig.png.arrayBuffer(), type: sig.png.type || 'image/png', createdAt: sig.createdAt }
+    return tx('signatures', 'readwrite', (st) => st.put(rec))
+  },
   deleteSignature: (id: string) => tx('signatures', 'readwrite', (st) => st.delete(id)),
   async signatures(): Promise<SavedSignature[]> {
-    const all = (await tx<SavedSignature[]>('signatures', 'readonly', (s) => s.getAll())) ?? []
-    return all.sort((a, b) => b.createdAt - a.createdAt)
+    const all = (await tx<StoredSignature[]>('signatures', 'readonly', (s) => s.getAll())) ?? []
+    return all
+      .map((r) => ({ id: r.id, kind: r.kind, createdAt: r.createdAt, png: r.png instanceof Blob ? r.png : new Blob([r.bytes ?? new ArrayBuffer(0)], { type: r.type || 'image/png' }) }))
+      .sort((a, b) => b.createdAt - a.createdAt)
   },
 }
