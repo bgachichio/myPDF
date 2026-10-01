@@ -48,11 +48,11 @@ function Shell() {
     <>
       {route === 'home' && <Home onSettings={() => setSettings(true)} />}
       {route === 'work' && <Workbench onBack={() => void close()} onEdit={openCanvas} onSettings={() => setSettings(true)} />}
-      {route === 'canvas' && <Canvas startPage={canvasPage} onBack={toWork} />}
+      {route === 'canvas' && <Canvas startPage={canvasPage} onBack={toWork} onSettings={() => setSettings(true)} />}
       <SettingsSheet open={settings} onClose={() => setSettings(false)} />
       <PasswordSheet />
-      {busy && <div role="status" className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-2 rounded-full text-sm" style={{ background: 'var(--md-inverse-surface)', color: 'var(--md-inverse-on-surface)' }} data-testid="busy">{busy}</div>}
-      {toast && <div role="status" aria-live="polite" className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-5 py-3 rounded-2xl text-sm" style={{ background: 'var(--md-inverse-surface)', color: 'var(--md-inverse-on-surface)' }} data-testid="toast">{toast}</div>}
+      {busy && <output className="block fixed top-16 left-1/2 -translate-x-1/2 z-50 px-5 py-2 rounded-full text-sm" style={{ background: 'var(--md-inverse-surface)', color: 'var(--md-inverse-on-surface)' }} data-testid="busy">{busy}</output>}
+      {toast && <output aria-live="polite" className="block fixed bottom-24 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-5 py-3 rounded-2xl text-sm" style={{ background: 'var(--md-inverse-surface)', color: 'var(--md-inverse-on-surface)' }} data-testid="toast">{toast}</output>}
       {dropping && <div className="fixed inset-0 z-50 flex items-center justify-center text-xl pointer-events-none" style={{ background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', opacity: 0.92 }}>Drop a PDF to open it</div>}
     </>
   )

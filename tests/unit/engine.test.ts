@@ -58,6 +58,38 @@ describe('organise (M1)', () => {
     expect(await engine.textIn(id, 0, [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)])).toContain('Trace')
   })
 
+  it('wordAt finds the word under a point and nothing in empty space', async () => {
+    const { id } = await open('pdfjs-tracemonkey-text.pdf')
+    const q = await engine.wordAt(id, 0, [120, 87])
+    expect(q).not.toBeNull()
+    expect(await engine.textIn(id, 0, [Math.min(q![0], q![4]), q![1], Math.max(q![2], q![6]), q![5]])).toContain('Trace')
+    expect(await engine.wordAt(id, 0, [5, 5])).toBeNull()
+  })
+
+  it('outline lists bookmarks with their pages and depth', async () => {
+    const doc = new mupdf.PDFDocument()
+    for (let i = 0; i < 3; i++) doc.insertPage(i, doc.addPage([0, 0, 200, 200], 0, doc.newDictionary(), ''))
+    const it = doc.outlineIterator()
+    it.insert({ title: 'Chapter 1', uri: doc.formatLinkURI({ chapter: 0, page: 0, type: 'Fit', x: 0, y: 0, width: 0, height: 0, zoom: 0 } as never), open: true })
+    it.insert({ title: 'Chapter 2', uri: doc.formatLinkURI({ chapter: 0, page: 2, type: 'Fit', x: 0, y: 0, width: 0, height: 0, zoom: 0 } as never), open: true })
+    const bytes = doc.saveToBuffer('').asUint8Array().slice()
+    const r = await engine.open(ab(Buffer.from(bytes)))
+    const o = await engine.outline(r.id)
+    expect(o.map((e) => [e.title, e.page, e.depth])).toEqual([['Chapter 1', 0, 0], ['Chapter 2', 2, 0]])
+    const real = await engine.outline((await open('pdfjs-basicapi.pdf')).id)
+    expect(real.length).toBeGreaterThan(0)
+    for (const e of real) { expect(typeof e.title).toBe('string'); expect(e.page).toBeGreaterThanOrEqual(0); expect(e.depth).toBeGreaterThanOrEqual(0) }
+  })
+
+  it('reports a repaired file on open', async () => {
+    const good = corpus('pdfjs-basicapi.pdf')
+    const broken = Buffer.from(good.toString('latin1').replace(/startxref\s+\d+/g, 'startxref\n999999'), 'latin1')
+    const r = await engine.open(ab(broken))
+    expect(r.id).not.toBe('')
+    expect(r.repaired).toBe(true)
+    expect((await open('pdfjs-basicapi.pdf')).repaired).toBe(false)
+  })
+
   it('R03: merges three files and moves page 5 to position 1', async () => {
     const a = await open('pdfjs-tracemonkey-text.pdf'), b = await open('pdfjs-basicapi.pdf'), c = await open('synthetic-image-heavy-8p.pdf')
     await engine.merge(a.id, b.id, 14)

@@ -1,0 +1,5 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later
+   App tokens that globals.css (the designer's file, copied verbatim) does not carry. Values from src/styles/tokens.css.
+   tokens.css itself is not imported: its own dark rules key off data-theme and would fight the .dark class. */
+:root { --paper: #FFFFFF; --redact-mark: rgba(186, 26, 26, .13); --r-lg: 20px; --r-xl: 28px; --r-2xl: 32px; }
+.dark { --paper: #F4F4F2; }

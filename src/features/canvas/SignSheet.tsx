@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Sheet, { primaryBtn, primaryStyle, tonalBtn, tonalStyle, fieldStyle } from '@/features/common/Sheet'
 import { idb, type SavedSignature } from '@/storage/idb'
 
@@ -18,8 +18,8 @@ export default function SignSheet({ open, onClose, onUse }: Props) {
   const pad = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
 
-  const reload = async () => setSaved((await idb.signatures()).map((s) => ({ ...s, url: URL.createObjectURL(s.png) })))
-  useEffect(() => { if (open) void reload() }, [open])
+  const reload = useCallback(async () => setSaved((await idb.signatures()).map((s) => ({ ...s, url: URL.createObjectURL(s.png) }))), [])
+  useEffect(() => { if (open) void idb.signatures().then((list) => setSaved(list.map((s) => ({ ...s, url: URL.createObjectURL(s.png) })))) }, [open])
   useEffect(() => () => saved.forEach((s) => URL.revokeObjectURL(s.url)), [saved])
 
   const ctx = () => { const c = pad.current!.getContext('2d')!; c.lineWidth = 3; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#111'; return c }
@@ -34,7 +34,7 @@ export default function SignSheet({ open, onClose, onUse }: Props) {
     if (keep) { await idb.putSignature({ id: crypto.randomUUID(), kind, png, createdAt: Date.now() }) }
     onUse(png)
   }
-  const useTyped = async () => {
+  const placeTyped = async () => {
     if (!typed.trim()) return
     const c = document.createElement('canvas'); c.width = W; c.height = H
     const g = c.getContext('2d')!; g.fillStyle = '#111'; g.textBaseline = 'middle'
@@ -43,7 +43,7 @@ export default function SignSheet({ open, onClose, onUse }: Props) {
     g.fillText(typed, 10, H / 2)
     await finish(c, 'type')
   }
-  const useImage = async (file: File) => {
+  const placeImage = async (file: File) => {
     const bmp = await createImageBitmap(file)
     const c = document.createElement('canvas'); const k = Math.min(1, 600 / bmp.width); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k)
     c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height)
@@ -64,11 +64,11 @@ export default function SignSheet({ open, onClose, onUse }: Props) {
           <button className={`${primaryBtn} flex-1`} style={primaryStyle} data-testid="sign-use-draw" onClick={() => void finish(pad.current!, 'draw')}>Use signature</button></div>
       </>)}
       {tab === 'type' && (<>
-        <input aria-label="Type your name" value={typed} onChange={(e) => setTyped(e.target.value)} className="min-h-11 rounded-xl px-4" style={fieldStyle} data-testid="sign-typed" />
-        <button className={primaryBtn} style={primaryStyle} data-testid="sign-use-typed" onClick={() => void useTyped()}>Use signature</button>
+        <input aria-label="Type your name" value={typed} onChange={(e) => setTyped(e.target.value)} className="min-h-[44px] rounded-xl px-4" style={fieldStyle} data-testid="sign-typed" />
+        <button className={primaryBtn} style={primaryStyle} data-testid="sign-use-typed" onClick={() => void placeTyped()}>Use signature</button>
       </>)}
       {tab === 'image' && <label className="flex flex-col gap-2"><span>Choose a picture of your signature (PNG or JPEG)</span>
-        <input type="file" accept="image/png,image/jpeg" onChange={(e) => { const f = e.target.files?.[0]; if (f) void useImage(f) }} /></label>}
+        <input type="file" accept="image/png,image/jpeg" onChange={(e) => { const f = e.target.files?.[0]; if (f) void placeImage(f) }} /></label>}
       {tab === 'saved' && (saved.length === 0 ? <p>No saved signatures yet.</p> : (
         <ul className="flex flex-col gap-3">{saved.map((s) => (
           <li key={s.id} className="flex items-center gap-3">
@@ -76,7 +76,7 @@ export default function SignSheet({ open, onClose, onUse }: Props) {
             <button className={tonalBtn} style={tonalStyle} data-testid="sign-use-saved" onClick={() => onUse(s.png)}>Use</button>
             <button className={tonalBtn} style={tonalStyle} aria-label="Delete saved signature" onClick={async () => { await idb.deleteSignature(s.id); await reload() }}>Delete</button>
           </li>))}</ul>))}
-      {tab !== 'saved' && <label className="flex items-center gap-3 min-h-11"><input type="checkbox" className="w-6 h-6" checked={keep} onChange={(e) => setKeep(e.target.checked)} /><span>Keep on this device for next time</span></label>}
+      {tab !== 'saved' && <label className="flex items-center gap-3 min-h-[44px]"><input type="checkbox" className="w-6 h-6" checked={keep} onChange={(e) => setKeep(e.target.checked)} /><span>Keep on this device for next time</span></label>}
     </Sheet>
   )
 }

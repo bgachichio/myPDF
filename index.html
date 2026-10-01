@@ -3,8 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Private PDF editor. Your files never leave your device." />
-  <title>myPDF</title>
+  <title>myPDF: edit, sign, redact and compress PDFs privately</title>
+  <meta name="description" content="A free, open-source PDF editor that runs in your browser. Reorder pages, edit text, fill forms, sign, redact, compress and OCR. Your file never leaves your device." />
+  <link rel="canonical" href="https://mypdf.gachichio.org/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="myPDF" />
+  <meta property="og:title" content="myPDF: edit any PDF. It never leaves your device." />
+  <meta property="og:description" content="Free, open-source PDF editor that runs in your browser and works offline. No uploads, no accounts." />
+  <meta property="og:url" content="https://mypdf.gachichio.org/" />
+  <meta property="og:image" content="https://mypdf.gachichio.org/icons/icon-512.png" />
+  <meta property="og:image:alt" content="The myPDF logo, a document on a green square" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"myPDF","url":"https://mypdf.gachichio.org/","applicationCategory":"BusinessApplication","operatingSystem":"Any (web browser)","description":"A free, open-source PDF editor that runs entirely in the browser. Files are never uploaded.","isAccessibleForFree":true,"license":"https://www.gnu.org/licenses/agpl-3.0.html","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@type":"Person","name":"Brian Gachichio","url":"https://x.com/b_gachichio"}}
+  </script>
   <script src="/theme-init.js"></script>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
@@ -12,7 +24,22 @@
   <meta name="theme-color" content="#237352" />
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <!-- Shown to crawlers and before the app loads; React replaces it on mount. -->
+    <main>
+      <h1>Edit any PDF. It never leaves your device.</h1>
+      <p>myPDF is a free, open-source PDF editor that runs in your browser and works offline. Your file stays on your phone or laptop, because there is no server to upload it to.</p>
+      <ul>
+        <li>Reorder, rotate, merge, split and extract pages</li>
+        <li>Edit text, highlight, draw and add notes</li>
+        <li>Fill and flatten forms, and sign</li>
+        <li>Redact for real, with the text removed and checked</li>
+        <li>Compress, add a password, and read scanned pages with OCR</li>
+      </ul>
+      <p>Made by <a href="https://x.com/b_gachichio">Brian Gachichio</a>. Source code: <a href="https://github.com/bgachichio/myPDF">github.com/bgachichio/myPDF</a> (AGPL-3.0-or-later).</p>
+      <noscript><p>myPDF needs JavaScript to run, because the editor works inside your browser.</p></noscript>
+    </main>
+  </div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>

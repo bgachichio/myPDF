@@ -6,6 +6,7 @@ import type { PageInfo, SaveOptions } from '@/engine/PdfEngine'
 import { UndoStack, type Snapshot } from '@/history/undo'
 import { opfs } from '@/storage/opfs'
 import { idb } from '@/storage/idb'
+import { noteDocumentOpened } from '@/features/privacy-receipt/receipt'
 
 export interface Session { id: string; storageId: string; name: string; pages: PageInfo[]; rev: number; marks: number }
 export interface PendingPassword { name: string; bytes: Uint8Array; storageId?: string; wrong: boolean }
@@ -80,8 +81,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     apply({ id: res.id, storageId: sid, name, pages: res.pages, rev: 0, marks: 0 })
     setPending(null)
     persistSoon()
+    noteDocumentOpened()
+    if (res.repaired) notify('This file was damaged. It was repaired when opened. Check it before you share it.')
     return true
-  }, [persistSoon])
+  }, [persistSoon, notify])
 
   const guarded = useCallback(async (label: string, fn: () => Promise<void>) => {
     setBusy(label)

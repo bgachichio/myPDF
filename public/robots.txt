@@ -1,0 +1,23 @@
+# Search crawlers are welcome. Training crawlers are blocked: Brian's choice on 01-10-2026 (DEPLOY.md section 7).
+User-agent: Googlebot
+Allow: /
+User-agent: Bingbot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: Claude-SearchBot
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: GPTBot
+Disallow: /
+User-agent: ClaudeBot
+Disallow: /
+User-agent: CCBot
+Disallow: /
+User-agent: Google-Extended
+Disallow: /
+User-agent: *
+Allow: /
+
+Sitemap: https://mypdf.gachichio.org/sitemap.xml

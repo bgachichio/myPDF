@@ -48,3 +48,16 @@ describe('support config', () => {
     expect(bech32mVerify(BTC_ADDRESS)).toBe(true)
   })
 })
+
+describe('production build guard (R15)', () => {
+  it('throws when either address is empty and passes when both are set', async () => {
+    const { assertSupportConfig } = await import('@/config/support-guard')
+    expect(() => assertSupportConfig('', BTC_ADDRESS)).toThrow(/must not be empty/)
+    expect(() => assertSupportConfig(LIGHTNING_ADDRESS, '  ')).toThrow(/must not be empty/)
+    expect(() => assertSupportConfig(LIGHTNING_ADDRESS, BTC_ADDRESS)).not.toThrow()
+  })
+  it('the Lightning address looks like name@host and no copy suggests a gift size', async () => {
+    expect(LIGHTNING_ADDRESS).toMatch(/^[\w.+-]+@[\w.-]+\.[a-z]{2,}$/i)
+    expect(PAYSTACK_URL).toBe('https://paystack.shop/pay/gachichio')
+  })
+})

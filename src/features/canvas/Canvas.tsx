@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, MousePointer2, Type, Highlighter, PenLine, Signature, EyeOff, TextCursorInput, Undo2, Redo2, Search } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, MousePointer2, Type, Highlighter, PenLine, Signature, EyeOff, TextCursorInput, Undo2, Redo2, Search, Settings, ListTree } from 'lucide-react'
 import { useSession } from '@/app/session'
 import { getEngine } from '@/engine/mupdf/client'
-import type { AnnotationType, FormField, Quad, Rect, SearchHit } from '@/engine/PdfEngine'
+import type { AnnotationType, FormField, OutlineEntry, Quad, Rect, SearchHit } from '@/engine/PdfEngine'
 import Sheet, { primaryBtn, primaryStyle, tonalBtn, tonalStyle, fieldStyle } from '@/features/common/Sheet'
 import SignSheet from '@/features/canvas/SignSheet'
 
@@ -15,9 +15,10 @@ const quadOf = (r: Rect): Quad => [r[0], r[1], r[2], r[1], r[0], r[3], r[2], r[3
 const boxOf = (q: Quad): Rect => [Math.min(q[0], q[2], q[4], q[6]), Math.min(q[1], q[3], q[5], q[7]), Math.max(q[0], q[2], q[4], q[6]), Math.max(q[1], q[3], q[5], q[7])]
 const norm = (a: [number, number], b: [number, number]): Rect => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]
 
-export default function Canvas({ startPage, onBack }: { startPage: number; onBack: () => void }) {
+export default function Canvas({ startPage, onBack, onSettings }: { startPage: number; onBack: () => void; onSettings: () => void }) {
   const { session, run, undo, redo, canUndo, canRedo, notify, busy } = useSession()
-  const [page, setPage] = useState(Math.min(startPage, Math.max(0, (session?.pages.length ?? 1) - 1)))
+  const [rawPage, setPage] = useState(startPage)
+  const page = Math.max(0, Math.min(rawPage, (session?.pages.length ?? 1) - 1))
   const [zoom, setZoom] = useState(1)
   const [tool, setTool] = useState<Tool>('select')
   const [markup, setMarkup] = useState<Markup>('highlight')
@@ -32,6 +33,7 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
   const [redactTerm, setRedactTerm] = useState('')
   const [fields, setFields] = useState<FormField[]>([])
   const [vw, setVw] = useState(window.innerWidth)
+  const [contents, setContents] = useState<OutlineEntry[] | null>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const overlay = useRef<HTMLDivElement>(null)
   const start = useRef<[number, number] | null>(null)
@@ -41,7 +43,6 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
   const s = fit * zoom
 
   useEffect(() => { const on = () => setVw(window.innerWidth); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on) }, [])
-  useEffect(() => { if (session && page >= session.pages.length) setPage(Math.max(0, session.pages.length - 1)) }, [session, page])
 
   // Render the page whenever the document, page or zoom changes.
   useEffect(() => {
@@ -56,12 +57,12 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
       c.dataset.rendered = `${page}`
     }).catch(() => undefined)
     return () => { cancelled = true }
-  }, [session?.id, session?.rev, page, s, dpr, info])
+  }, [session, page, s, dpr, info])
 
   useEffect(() => {
     if (!session || tool !== 'fields') return
     void getEngine().fields(session.id).then(setFields).catch(() => setFields([]))
-  }, [session?.id, session?.rev, tool])
+  }, [session, tool])
 
   const go = useCallback((p: number) => { if (session) setPage(Math.max(0, Math.min(session.pages.length - 1, p))) }, [session])
   useEffect(() => {
@@ -128,8 +129,15 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
   const onUp = async (e: React.PointerEvent) => {
     if (!start.current) return
     const begin = start.current; start.current = null
-    const end = at(e), r = norm(begin, end), tiny = (r[2] - r[0]) * s < 6 && (r[3] - r[1]) * s < 6
+    const end = at(e)
+    let r = norm(begin, end), tiny = (r[2] - r[0]) * s < 6 && (r[3] - r[1]) * s < 6
     setDraft(null)
+    // A tap selects the word under the finger for the text tools (edit, redact, highlight, underline, strike).
+    const wordTool = tool === 'edit' || tool === 'redact' || (tool === 'markup' && (markup === 'highlight' || markup === 'underline' || markup === 'strikeout'))
+    if (tiny && wordTool) {
+      const q = await getEngine().wordAt(session.id, page, end)
+      if (q) { r = boxOf(q); tiny = false }
+    }
     if (tool === 'draw') { const pts = ink; setInk([]); if (pts.length > 1) await annotate('ink', { inkList: [pts], color: '#1a3fb0' }); return }
     if (tool === 'sign' && armed) {
       const w = tiny ? 150 : r[2] - r[0], h = tiny ? 150 * armed.ratio : r[3] - r[1]
@@ -137,7 +145,7 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
     }
     if (tool === 'redact') { if (!tiny) await run('Marking', (en, id) => en.markRedaction(id, page, [quadOf(r)]).then(() => undefined), { marks: marks + 1 }); return }
     if (tool === 'edit') {
-      if (tiny) return
+      if (tiny) return notify('No word there. Tap a word, or drag across the words you want to change.')
       if (info.rotation !== 0) return notify('Rotate the page back to upright before editing its text')
       const old = await getEngine().textIn(session.id, page, r)
       if (!old) return notify('No text found there. Drag across the words you want to change.')
@@ -158,7 +166,7 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
       style={tool === t ? { background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)' } : undefined}
       onClick={() => { setTool(t); setDraft(null); if (t === 'sign') setSignOpen(true) }}>{icon}<span>{label}</span></button>
   )
-  const iconBtn = 'flex items-center justify-center rounded-full w-11 h-11 disabled:opacity-40'
+  const iconBtn = 'flex items-center justify-center rounded-full w-[44px] h-[44px] shrink-0 disabled:opacity-40'
   const pageHits = hits?.find((h) => h.page === page)
   const MARKUPS: [Markup, string][] = [['highlight', 'Highlight'], ['underline', 'Underline'], ['strikeout', 'Strike'], ['freetext', 'Text box'], ['square', 'Box'], ['circle', 'Circle'], ['note', 'Note']]
 
@@ -167,19 +175,19 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
       <header className="sticky top-0 z-30 flex items-center gap-1 px-2 h-14" style={{ background: 'var(--md-surface)', borderBottom: '1px solid var(--md-outline-variant)' }}>
         <button aria-label="Back to pages" className={iconBtn} onClick={onBack}><ArrowLeft size={24} /></button>
         <button aria-label="Previous page" className={iconBtn} disabled={page === 0} onClick={() => go(page - 1)} data-testid="prev"><ChevronLeft size={24} /></button>
-        <span className="text-sm min-w-16 text-center" aria-live="polite" data-testid="page-indicator">{page + 1} / {session.pages.length}</span>
+        <span className="text-sm min-w-[64px] text-center shrink-0" aria-live="polite" data-testid="page-indicator">{page + 1} / {session.pages.length}</span>
         <button aria-label="Next page" className={iconBtn} disabled={page >= session.pages.length - 1} onClick={() => go(page + 1)} data-testid="next"><ChevronRight size={24} /></button>
         <span className="flex-1" />
-        <button aria-label="Zoom out" className={iconBtn} onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}><ZoomOut size={22} /></button>
-        <button aria-label="Zoom in" className={iconBtn} onClick={() => setZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))}><ZoomIn size={22} /></button>
         <button aria-label="Undo" className={iconBtn} onClick={() => void undo()} disabled={!canUndo || Boolean(busy)} data-testid="undo"><Undo2 size={22} /></button>
         <button aria-label="Redo" className={iconBtn} onClick={() => void redo()} disabled={!canRedo || Boolean(busy)} data-testid="redo"><Redo2 size={22} /></button>
+        <button aria-label="Settings" className={iconBtn} onClick={onSettings} data-testid="settings"><Settings size={22} /></button>
       </header>
 
       {tool === 'select' && (
         <form className="flex items-center gap-2 px-4 py-2" role="search" onSubmit={(e) => { e.preventDefault(); void doSearch() }}>
           <Search size={20} aria-hidden="true" />
-          <input aria-label="Search this document" placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} className="flex-1 min-h-11 rounded-xl px-4" style={fieldStyle} data-testid="search" />
+          <input aria-label="Search this document" placeholder="Search" value={query} onChange={(e) => setQuery(e.target.value)} className="flex-1 min-w-0 min-h-[44px] rounded-xl px-4" style={fieldStyle} data-testid="search" />
+          <button type="button" className={iconBtn} aria-label="Contents" data-testid="contents" onClick={() => void getEngine().outline(session.id).then(setContents)}><ListTree size={22} /></button>
           {hits && <span className="text-sm" data-testid="search-count">{hits.length ? `${hitPos + 1} of ${hits.length} pages` : 'No matches'}</span>}
           {hits?.length ? (<><button type="button" className={iconBtn} aria-label="Previous match" onClick={() => stepHit(-1)}><ChevronLeft size={20} /></button><button type="button" className={iconBtn} aria-label="Next match" onClick={() => stepHit(1)}><ChevronRight size={20} /></button></>) : null}
         </form>
@@ -191,14 +199,14 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
           {MARKUPS.map(([m, label]) => <button key={m} className={tonalBtn} aria-pressed={markup === m} data-testid={`markup-${m}`} style={markup === m ? primaryStyle : tonalStyle} onClick={() => setMarkup(m)}>{label}</button>)}
         </div>
       )}
-      {tool === 'edit' && <p className="px-4 py-2 text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Drag across the words to change. Edits stay on one line.</p>}
+      {tool === 'edit' && <p className="px-4 py-2 text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Tap a word, or drag across several, to change them. Edits stay on one line.</p>}
       {tool === 'draw' && <p className="px-4 py-2 text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Draw with your finger or mouse.</p>}
       {tool === 'sign' && armed && <p className="px-4 py-2 text-sm" role="status">Tap where the signature goes, or drag a box.</p>}
       {tool === 'redact' && (
         <div className="px-4 py-3 flex flex-col gap-2" style={{ background: 'var(--md-error-container)', color: 'var(--md-on-error-container)' }}>
           <p className="text-sm font-medium" data-testid="redact-banner">{marks} {marks === 1 ? 'area' : 'areas'} marked. Drag a box over anything to remove, or find text below. Nothing is removed until you apply.</p>
-          <div className="flex gap-2">
-            <input aria-label="Text to find and mark" placeholder="Find text to mark" value={redactTerm} onChange={(e) => setRedactTerm(e.target.value)} className="flex-1 min-h-11 rounded-xl px-4" style={fieldStyle} data-testid="redact-term" />
+          <div className="flex gap-2 flex-wrap">
+            <input aria-label="Text to find and mark" placeholder="Find text to mark" value={redactTerm} onChange={(e) => setRedactTerm(e.target.value)} className="flex-1 min-w-0 min-h-[44px] rounded-xl px-4" style={fieldStyle} data-testid="redact-term" />
             <button className={tonalBtn} style={tonalStyle} onClick={() => void markAll()} data-testid="redact-mark">Mark all</button>
           </div>
           <button className={primaryBtn} disabled={marks === 0 || Boolean(busy)} data-testid="redact-apply"
@@ -232,6 +240,11 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
         </div>
       </main>
 
+      <div className="fixed right-3 bottom-[88px] z-30 flex flex-col gap-2" role="group" aria-label="Zoom">
+        <button aria-label="Zoom in" className={`${iconBtn} shadow-md`} style={{ background: 'var(--md-surface-container-high)' }} onClick={() => setZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))}><ZoomIn size={22} /></button>
+        <button aria-label="Zoom out" className={`${iconBtn} shadow-md`} style={{ background: 'var(--md-surface-container-high)' }} onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}><ZoomOut size={22} /></button>
+      </div>
+
       <nav aria-label="Tools" className="fixed bottom-0 left-0 right-0 z-30 flex justify-center gap-1 px-2 py-2 overflow-x-auto" style={{ background: 'var(--md-surface-container-high)', borderTop: '1px solid var(--md-outline-variant)' }}>
         {toolBtn('select', <MousePointer2 size={22} />, 'Select')}
         {toolBtn('edit', <Type size={22} />, 'Edit text')}
@@ -242,6 +255,13 @@ export default function Canvas({ startPage, onBack }: { startPage: number; onBac
         {toolBtn('fields', <TextCursorInput size={22} />, 'Fields')}
       </nav>
 
+      <Sheet open={contents !== null} title="Contents" onClose={() => setContents(null)}>
+        {contents?.length ? (
+          <ul className="flex flex-col">{contents.map((c, i) => (
+            <li key={`${i}-${c.page}`}><button className="w-full text-left min-h-[44px] rounded-xl px-3 flex items-center justify-between gap-3" style={{ paddingLeft: 12 + c.depth * 16 }} data-testid="contents-item"
+              onClick={() => { setPage(c.page); setContents(null) }}><span className="truncate">{c.title}</span><span className="text-sm shrink-0" style={{ color: 'var(--md-on-surface-variant)' }}>{c.page + 1}</span></button></li>))}</ul>
+        ) : <p>This document has no contents list.</p>}
+      </Sheet>
       <SignSheet open={signOpen} onClose={() => { setSignOpen(false); if (!armed) setTool('select') }} onUse={async (png) => {
         const bm = await createImageBitmap(png); setArmed({ png, ratio: bm.height / bm.width }); bm.close(); setSignOpen(false)
       }} />

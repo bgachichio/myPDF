@@ -29,11 +29,12 @@ export interface FormField {
   options?: string[]
 }
 
+export interface OutlineEntry { title: string; page: number; depth: number }
 export interface OcrWord { text: string; rect: Rect }
 
 // Coordinate frame for every Rect and Quad: MuPDF page space in points, origin top-left, y down, unrotated page.
 export interface PdfEngine {
-  open(bytes: ArrayBuffer, password?: string): Promise<{ id: DocId; pages: PageInfo[]; needsPassword: boolean }>
+  open(bytes: ArrayBuffer, password?: string): Promise<{ id: DocId; pages: PageInfo[]; needsPassword: boolean; repaired?: boolean }>
   render(id: DocId, page: number, scale: number): Promise<ImageBitmap>
   text(id: DocId, page: number): Promise<string>
   search(id: DocId, needle: string): Promise<SearchHit[]>
@@ -54,6 +55,10 @@ export interface PdfEngine {
   stamp(id: DocId, kind: 'pageNumbers' | 'watermark', text?: string): Promise<void>
   save(id: DocId, opts: SaveOptions): Promise<Uint8Array>
   setMetadata(id: DocId, meta: Record<string, string>): Promise<void>
+  /** Added at M4 (decision log 01-10-2026): document outline (F01), flattened with nesting depth. */
+  outline(id: DocId): Promise<OutlineEntry[]>
+  /** Added at M4: the word under a point, so a tap can select text. Null when the point is not on a word. */
+  wordAt(id: DocId, page: number, point: [number, number]): Promise<Quad | null>
   /** Added at M1 (decision log 01-10-2026): current page list after edits. */
   pages(id: DocId): Promise<PageInfo[]>
   /** Added at M2 (decision log 01-10-2026): text under a rectangle, used to prefill text replacement and to preview redactions. */

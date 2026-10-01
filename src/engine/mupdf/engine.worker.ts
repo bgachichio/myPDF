@@ -2,7 +2,7 @@
 // The only file that imports "mupdf" (BUILD-BRIEF section 3). Rect and Quad are MuPDF page space: points, origin top-left, y down.
 import * as Comlink from 'comlink'
 import type * as M from 'mupdf'
-import type { DocId, PageInfo, SearchHit, SaveOptions, AnnotationInput, FormField, Rect, Quad, OcrWord, PdfEngine } from '@/engine/PdfEngine'
+import type { DocId, OutlineEntry, PageInfo, SearchHit, SaveOptions, AnnotationInput, FormField, Rect, Quad, OcrWord, PdfEngine } from '@/engine/PdfEngine'
 
 // mupdf is imported lazily: its module has a top-level await, and a worker that is still evaluating drops the first messages.
 let mupdf: typeof M
@@ -127,7 +127,7 @@ const raw: PdfEngine = {
       if (!password) return { id: '', pages: [], needsPassword: true }
       if (!doc.authenticatePassword(password)) return { id: '', pages: [], needsPassword: true }
     }
-    return { id: register(doc), pages: pagesOf(doc), needsPassword: false }
+    return { id: register(doc), pages: pagesOf(doc), needsPassword: false, repaired: doc.wasRepaired() }
   },
 
   async render(id, page, scale) {
@@ -156,6 +156,32 @@ const raw: PdfEngine = {
   },
 
   async pages(id) { return pagesOf(D(id)) },
+
+  async outline(id) {
+    const doc = D(id), out: OutlineEntry[] = []
+    interface Item { title?: string; uri?: string; page?: number; down?: Item[] }
+    const walk = (items: Item[] | null | undefined, depth: number) => {
+      for (const it of items ?? []) {
+        let page = it.page ?? -1
+        if (page < 0 && it.uri) { try { page = doc.resolveLink(it.uri) } catch { page = -1 } }
+        if (page >= 0) out.push({ title: (it.title ?? '').trim() || `Page ${page + 1}`, page, depth })
+        walk(it.down, depth + 1)
+      }
+    }
+    walk(doc.loadOutline(), 0)
+    return out
+  },
+
+  async wordAt(id, pageIndex, point) {
+    const p = D(id).loadPage(pageIndex)
+    let q: Quad | null = null
+    try { q = p.toStructuredText('preserve-whitespace').snap(point, point, 'words') as Quad | null } catch { q = null }
+    p.destroy()
+    if (!q || q.length < 8) return null
+    const b = [Math.min(q[0], q[2], q[4], q[6]), Math.min(q[1], q[3], q[5], q[7]), Math.max(q[0], q[2], q[4], q[6]), Math.max(q[1], q[3], q[5], q[7])]
+    const pad = 3 // snap() returns the nearest word even for empty space, so the point must actually sit on it
+    return point[0] >= b[0] - pad && point[0] <= b[2] + pad && point[1] >= b[1] - pad && point[1] <= b[3] + pad && b[2] > b[0] ? q : null
+  },
 
   async textIn(id, page, rect) {
     const p = D(id).loadPage(page)

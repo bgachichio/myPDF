@@ -27,7 +27,7 @@ jobs:
       - if: steps.app.outputs.present == 'true'
         run: npm audit --audit-level=high
       - if: steps.app.outputs.present == 'true'
-        run: npx eslint . && npx tsc --noEmit
+        run: npx oxlint && npx eslint . && npx tsc --noEmit
       - if: steps.app.outputs.present == 'true'
         run: npm test
       - if: steps.app.outputs.present == 'true'
