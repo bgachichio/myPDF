@@ -4,8 +4,9 @@
 // Records pass/fail to stdout and exits 0 only if all present files pass.
 // At M0, checks open() and render() of page 0. Subsequent milestones add save and redaction residue.
 
-import { execSync } from 'child_process'
-import { readFileSync, readdirSync, writeFileSync } from 'fs'
+import { execFileSync } from 'child_process'
+import { tmpdir } from 'os'
+import { readFileSync, readdirSync, writeFileSync, unlinkSync } from 'fs'
 import { join, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { performance } from 'perf_hooks'
@@ -36,38 +37,54 @@ try {
   process.exit(0)
 }
 
+// Known passwords for synthetic encrypted files (MANIFEST.md). Files with an unknown password are open-checked only.
+const KNOWN_PASSWORDS = { 'synthetic-encrypted-aes256.pdf': 'testpass' }
+
+try {
+  execFileSync('qpdf', ['--version'], { stdio: 'pipe' })
+} catch {
+  console.error('qpdf is not installed. Install it (sudo apt-get install -y qpdf) and re-run; the corpus check will not guess.')
+  process.exit(2)
+}
+
 for (const filePath of pdfFiles) {
   const name = filePath.split('/').pop()
   const start = performance.now()
   try {
     const bytes = readFileSync(filePath)
     const doc = mupdf.PDFDocument.openDocument(bytes, 'application/pdf')
+    if (doc.needsPassword()) {
+      const pw = KNOWN_PASSWORDS[name]
+      if (!pw) {
+        doc.destroy(); passed++
+        console.log(`${'PASS(open)'.padEnd(12)} ${name.padEnd(40)} encrypted, password unknown: open only`)
+        continue
+      }
+      if (!doc.authenticatePassword(pw)) throw new Error('known password rejected')
+    }
     const pageCount = doc.countPages()
-
-    // Render page 0
     const page = doc.loadPage(0)
     const pixmap = page.toPixmap(mupdf.Matrix.scale(1.0, 1.0), mupdf.ColorSpace.DeviceRGB, false, true)
     const renderMs = performance.now() - start
     pixmap.destroy()
     page.destroy()
 
-    // Save
-    const saved = doc.saveToBuffer('garbage=compact,compress')
-    const savedBytes = saved.asUint8Array()
+    const savedBytes = doc.saveToBuffer('garbage=compact,compress').asUint8Array()
     doc.destroy()
 
-    // qpdf --check (only if qpdf is available)
-    const tmpPath = `/tmp/corpus-check-${Date.now()}.pdf`
+    const tmpPath = join(tmpdir(), `corpus-check-${process.pid}-${name}`)
     writeFileSync(tmpPath, savedBytes)
     let qpdfOk = true
     try {
-      execSync(`qpdf --check "${tmpPath}"`, { stdio: 'pipe' })
-    } catch {
-      qpdfOk = false
+      execFileSync('qpdf', [...(KNOWN_PASSWORDS[name] ? [`--password=${KNOWN_PASSWORDS[name]}`] : []), '--check', tmpPath], { stdio: 'pipe' })
+    } catch (e) {
+      // qpdf exits 3 for warnings (output still valid); 2 is a real error
+      qpdfOk = e.status === 3
     }
+    unlinkSync(tmpPath)
 
     const status = qpdfOk ? 'PASS' : 'FAIL(qpdf)'
-    if (qpdfOk) passed++ ; else failed++
+    if (qpdfOk) passed++; else failed++
     console.log(`${status.padEnd(12)} ${name.padEnd(40)} pages=${pageCount} render=${renderMs.toFixed(0)}ms`)
   } catch (e) {
     failed++

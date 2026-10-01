@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { useRef } from 'react'
 import { FileText, Settings } from 'lucide-react'
 import { useAppearance } from '@/hooks/appearance-hooks.jsx'
 import { SIGN_OFF } from '@/config/support'
 
 interface HomeProps {
   onSettings: () => void
+  onOpen: (file: File) => void
 }
 
-export default function Home({ onSettings }: HomeProps) {
+export default function Home({ onSettings, onOpen }: HomeProps) {
+  const input = useRef<HTMLInputElement>(null)
   const { theme } = useAppearance()
   void theme // used by the hook to track state
 
@@ -35,7 +38,10 @@ export default function Home({ onSettings }: HomeProps) {
         <p className="text-center text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>
           Your file stays on this device
         </p>
+        <input ref={input} type="file" accept="application/pdf,.pdf" hidden data-testid="file-input"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onOpen(f); e.target.value = '' }} />
         <button
+          onClick={() => input.current?.click()}
           className="px-8 py-3 rounded-full font-medium text-base min-w-44 min-h-11"
           style={{
             background: 'var(--md-primary)',

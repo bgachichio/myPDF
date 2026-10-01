@@ -48,13 +48,18 @@ const engine = {
     const pixmap = p.toPixmap(matrix, mu.ColorSpace.DeviceRGB, false, true)
     const width = pixmap.getWidth()
     const height = pixmap.getHeight()
-    const pixels = pixmap.getPixels()
-    const buf: ArrayBuffer = pixels.buffer instanceof ArrayBuffer
-      ? pixels.buffer
-      : (pixels.buffer as unknown as ArrayBuffer)
-    const bitmap = await createImageBitmap(
-      new ImageData(new Uint8ClampedArray(buf, pixels.byteOffset, pixels.byteLength), width, height)
-    )
+    const n = pixmap.getNumberOfComponents()
+    const stride = pixmap.getStride()
+    const src = pixmap.getPixels()
+    const rgba = new Uint8ClampedArray(width * height * 4)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const si = y * stride + x * (n + (pixmap.getAlpha() ? 1 : 0))
+        const di = (y * width + x) * 4
+        rgba[di] = src[si]; rgba[di + 1] = src[si + 1]; rgba[di + 2] = src[si + 2]; rgba[di + 3] = 255
+      }
+    }
+    const bitmap = await createImageBitmap(new ImageData(rgba, width, height))
     pixmap.destroy()
     p.destroy()
     return bitmap
