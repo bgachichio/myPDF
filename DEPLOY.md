@@ -70,7 +70,7 @@ Observed 01-10-2026 on staged deployment `mypdf-n6nkbdzcq-gachichio.vercel.app`:
 | 4 Interaction | 3 specs, every field typed character by character | None. Focus held and values equal typed values, including `21.36`, `1,234.5`, `1-3, 5, 8-`. |
 | 5 Edges | 5 specs: empty, corrupt storage, one page, both themes, four text sizes, 390 px, 44 px targets, corrupt file, wrong password | Four app tokens (`--paper`, `--redact-mark`, `--r-lg`, `--r-xl`) were never loaded, so sheet corners were square and the page paper was transparent: this had shipped in the M1 to M3 deploy. Touch targets shrank below 44 px at the Compact size (rem sizing). The Canvas header and Redact bar overflowed at 390 px on Extra large. All fixed. |
 | 6 Parity | Stages 3 to 5 specs run against the minified production bundle, locally and against https://mypdf.gachichio.org | Identical results. |
-Defects that reached a deployed build: 1 (the missing tokens), caught at stage 5 on the next pass.
+Defects that reached a deployed build: 2. The missing tokens (caught at stage 5 on the next pass), and the service worker registration lost to an optimisation (caught by R01 and R12 in CI within minutes, fixed and redeployed).
 
 **Public page check (seo section 8), 01-10-2026, production, Lighthouse mobile (slow 4G, 4x CPU):** Performance 98 to 99, Accessibility 100, Best Practices 100, SEO 100. FCP 1.2 to 1.8 s, LCP 1.4 to 2.0 s, TBT 0 to 40 ms, CLS 0. (A first measurement scored 71 to 86; the cause was a 352 KB font and an unsplit bundle. Fixed by subsetting Inter to Latin, 90 KB, and lazy-loading the editor screens and OCR.) Content visible without JavaScript: yes, a static first paint in `index.html`. Title, description, canonical, Open Graph, `SoftwareApplication` JSON-LD, `robots.txt` and `sitemap.xml` present. Baseline: title "myPDF: edit, sign, redact and compress PDFs privately", canonical https://mypdf.gachichio.org/, 1 indexable page.
 
@@ -82,7 +82,7 @@ Defects that reached a deployed build: 1 (the missing tokens), caught at stage 5
 `./rollback.sh [deployment-url]` runs `vercel rollback --yes`, then fails loudly if production did not move. Pass a target from `npx vercel ls` (staged deployments make "previous" ambiguous: with no argument Vercel reported success while staying on the same deployment, observed 01-10-2026). Tested 01-10-2026: `./rollback.sh https://mypdf-n6nkbdzcq-gachichio.vercel.app` moved production from `mypdf-ot3x69qba` to `mypdf-n6nkbdzcq` in 18 s (limit 60 s); `vercel promote <url>` restored it.
 
 ## 9. Troubleshooting
-Nine failures that actually happened building M0 to M3 (01-10-2026):
+Ten failures that actually happened building M0 to M4 (01-10-2026):
 1. **CI red at `npx eslint .`: "typescript-eslint does not support TS 7.0".** BUILD-BRIEF pins TypeScript 7.0.2. Fix: ESLint lints JS only (`eslint.config.js`); `tsc -b` is the TypeScript gate; `typescript-eslint` removed.
 2. **Render threw "Failed to construct ImageData: input data length is not equal to 4 * width * height".** MuPDF returns 3 bytes per pixel when alpha is off. Fix: expand RGB to RGBA in `engine.worker.ts` before `createImageBitmap`.
 3. **`corpus-check` reported 0 of 25 on a machine without qpdf.** The check swallowed the missing binary as a failure. Fix: it now exits 2 with "qpdf is not installed". Real result is from CI, where qpdf is installed.
@@ -92,6 +92,7 @@ Nine failures that actually happened building M0 to M3 (01-10-2026):
 7. **Every engine call hung after M1 added a static `import 'mupdf'` to the worker.** The mupdf module has a top-level await; a worker still evaluating drops its first messages. Fix: import lazily and make every engine method await a `ready` promise (`engine.worker.ts`).
 8. **Playwright clicked the wrong place after switching Canvas tools.** The header height changes with the tool, so a box measured before the switch is stale. Measure after the tool bar settles.
 9. **Lint failed on `public/share-target-sw.js`.** Service-worker globals (`self`, `Response`, `File`) are declared for that file in `eslint.config.js`.
+10. **Production lost its service worker for about 15 minutes after an optimisation.** Setting `injectRegister: 'script-defer'` in `vite.config.ts` stopped the worker registering; R01 and R12 failed in CI and locally. Fix: leave `injectRegister` at its default. Lesson: after any build-config change, run the service-worker specs (R01, R12) before deploying, not only the specs for the area touched. Production was redeployed and R01 and R12 re-verified against https://mypdf.gachichio.org.
 Also seen: `vercel.app` aliases return 302 (Vercel deployment protection), so health checks use `vercel curl`, which carries the bypass. Candidates not yet hit: a stale service worker after an update, OPFS in private windows (M1), a Tesseract path 404 (M3).
 
 ## 10. Uninstall
