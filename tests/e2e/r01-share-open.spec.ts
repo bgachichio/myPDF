@@ -22,3 +22,25 @@ test('R01 share target opens the shared PDF with its pages shown', async ({ page
   await expect(page.getByTestId('page-0').locator('canvas')).toHaveAttribute('data-ready', 'true', { timeout: 15_000 })
   expect(new URL(page.url()).search).toBe('')
 })
+
+test('R01 share target on a phone profile keeps the file name, and a failed share says so', async ({ browser }) => {
+  const { devices } = await import('@playwright/test')
+  const context = await browser.newContext({ ...devices['Pixel 7'], serviceWorkers: 'allow', baseURL: process.env.BASE_URL ?? 'http://127.0.0.1:4173' })
+  const page = await context.newPage()
+  await prepare(page)
+  await page.goto('/')
+  await page.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise((r) => navigator.serviceWorker.addEventListener('controllerchange', r, { once: true })) })
+  const submit = async (files: { name: string; mimeType: string; buffer: Buffer }[]) => {
+    await page.evaluate(() => { document.querySelector('form')?.remove(); const f = document.createElement('form'); f.method = 'POST'; f.action = '/share'; f.enctype = 'multipart/form-data'; const i = document.createElement('input'); i.type = 'file'; i.name = 'file'; i.id = 'sf'; f.appendChild(i); document.body.appendChild(f) })
+    if (files.length) await page.locator('#sf').setInputFiles(files)
+    await Promise.all([page.waitForURL(/\/\?open=/), page.evaluate(() => (document.querySelector('form') as HTMLFormElement).submit())])
+  }
+  const { readFileSync } = await import('fs')
+  await submit([{ name: 'Board paper (final) v2.pdf', mimeType: 'application/pdf', buffer: readFileSync(corpus('pdfjs-basicapi.pdf')) }])
+  await expect(page.getByTestId('grid')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('Board paper (final) v2.pdf')).toBeVisible()
+  await page.goto('/')
+  await submit([])
+  await expect(page.getByTestId('toast')).toContainText('could not be received')
+  await context.close()
+})

@@ -146,10 +146,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }), [guarded, load])
 
   const openInbox = useCallback((uuid: string) => guarded('Opening shared file', async () => {
-    const bytes = await opfs.read(['inbox'], `${uuid}.pdf`)
+    // The share target service worker parks the file in the Cache API (older builds used OPFS, so that is the fallback).
+    const cache = await caches.open('mypdf-inbox')
+    const hit = await cache.match(`/inbox/${uuid}`)
+    let bytes: Uint8Array | null = null, name = 'Shared.pdf'
+    if (hit) { bytes = new Uint8Array(await hit.arrayBuffer()); name = decodeURIComponent(hit.headers.get('X-Name') ?? '') || name; await cache.delete(`/inbox/${uuid}`) }
+    else { bytes = await opfs.read(['inbox'], `${uuid}.pdf`); await opfs.remove(['inbox'], `${uuid}.pdf`) }
     if (!bytes) throw new Error('The shared file could not be read')
-    await load('Shared.pdf', bytes, undefined)
-    await opfs.remove(['inbox'], `${uuid}.pdf`)
+    await load(name, bytes, undefined)
   }), [guarded, load])
 
   const unlock = useCallback(async (password: string) => {

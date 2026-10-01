@@ -12,5 +12,5 @@ export default [
   },
   // theme-init.js is the designer skill's no-flash script, copied verbatim (CLAUDE.md): not edited to satisfy lint
   { files: ['public/theme-init.js'], rules: { 'no-unused-vars': 'off', 'no-empty': 'off' } },
-  { files: ['public/share-target-sw.js'], languageOptions: { globals: { self: 'readonly', File: 'readonly', Response: 'readonly', crypto: 'readonly', navigator: 'readonly' } } },
+  { files: ['public/share-target-sw.js'], languageOptions: { globals: { self: 'readonly', File: 'readonly', Response: 'readonly', crypto: 'readonly', navigator: 'readonly', caches: 'readonly' } } },
 ]

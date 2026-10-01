@@ -12,7 +12,7 @@ import PasswordSheet from '@/features/common/PasswordSheet'
 interface LaunchQueue { setConsumer(cb: (params: { files: FileSystemFileHandle[] }) => void): void }
 
 function Shell() {
-  const { session, busy, toast, openFile, openInbox, undo, redo, close } = useSession()
+  const { session, busy, toast, notify, openFile, openInbox, undo, redo, close } = useSession()
   const { route, canvasPage, openCanvas, toWork } = useRoute(Boolean(session))
   const [settings, setSettings] = useState(false)
   const [dropping, setDropping] = useState(false)
@@ -22,9 +22,10 @@ function Shell() {
     const q = new URLSearchParams(window.location.search).get('open')
     const m = /^inbox\/([0-9a-f-]{36})$/.exec(q ?? '')
     if (m) { history.replaceState(null, '', '/'); void openInbox(m[1]) }
+    else if (q === 'failed') { history.replaceState(null, '', '/'); notify('The shared file could not be received. Open myPDF and choose the file instead.') }
     // desktop file handler (file_handlers in the manifest)
     ;(window as unknown as { launchQueue?: LaunchQueue }).launchQueue?.setConsumer(async ({ files }) => { if (files[0]) void openFile(await files[0].getFile()) })
-  }, [openInbox, openFile])
+  }, [openInbox, openFile, notify])
 
   // Drag and drop anywhere (F01).
   useEffect(() => {

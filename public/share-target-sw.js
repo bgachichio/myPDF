@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Android share target (R01). Imported by the generated service worker. A shared PDF arrives as POST /share;
-// it is parked in OPFS /inbox/<uuid>.pdf and the page is redirected to /?open=inbox/<uuid>. Nothing leaves the device.
+// Android share target (R01). Imported by the generated service worker. A shared PDF arrives as POST /share. It is parked in the
+// Cache API (available in every service worker, unlike writable OPFS handles on some Android builds) under /inbox/<uuid>, and the
+// page is redirected to /?open=inbox/<uuid>. Any failure redirects to /?open=failed so the app can say so. Nothing leaves the device.
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
   if (event.request.method !== 'POST' || url.pathname !== '/share') return
   event.respondWith((async () => {
     try {
       const form = await event.request.formData()
-      const file = form.get('file')
-      if (!(file instanceof File)) return Response.redirect('/', 303)
+      let file = form.get('file')
+      if (!file) { for (const value of form.values()) { if (typeof value !== 'string') { file = value; break } } }
+      if (!file || typeof file === 'string' || file.size === 0) return Response.redirect('/?open=failed', 303)
       const id = crypto.randomUUID()
-      const root = await navigator.storage.getDirectory()
-      const inbox = await root.getDirectoryHandle('inbox', { create: true })
-      const handle = await inbox.getFileHandle(id + '.pdf', { create: true })
-      const writer = await handle.createWritable()
-      await writer.write(file)
-      await writer.close()
+      const cache = await caches.open('mypdf-inbox')
+      await cache.put('/inbox/' + id, new Response(file, { headers: { 'Content-Type': 'application/pdf', 'X-Name': encodeURIComponent(file.name || 'Shared.pdf') } }))
       return Response.redirect('/?open=inbox/' + id, 303)
     } catch {
-      return Response.redirect('/', 303)
+      return Response.redirect('/?open=failed', 303)
     }
   })())
 })

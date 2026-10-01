@@ -45,7 +45,7 @@ export default defineConfig({
           action: '/share',
           method: 'POST',
           enctype: 'multipart/form-data',
-          params: { files: [{ name: 'file', accept: ['application/pdf'] }] }
+          params: { files: [{ name: 'file', accept: ['application/pdf', '.pdf'] }] }
         },
         file_handlers: [{ action: '/', accept: { 'application/pdf': ['.pdf'] } }]
       }
