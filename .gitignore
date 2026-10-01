@@ -13,3 +13,5 @@ tests/corpus/private/
 .claude/worktrees/
 .claude/settings.local.json
 .vercel/
+.vercel
+.env*

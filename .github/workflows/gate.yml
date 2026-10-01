@@ -23,7 +23,7 @@ jobs:
         if: steps.app.outputs.present == 'true'
         with: { node-version: 22, cache: npm }
       - if: steps.app.outputs.present == 'true'
-        run: npm ci --legacy-peer-deps
+        run: npm ci
       - if: steps.app.outputs.present == 'true'
         run: npm audit --audit-level=high
       - if: steps.app.outputs.present == 'true'
