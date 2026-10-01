@@ -82,7 +82,7 @@ Defects that reached a deployed build: 2. The missing tokens (caught at stage 5 
 `./rollback.sh [deployment-url]` runs `vercel rollback --yes`, then fails loudly if production did not move. Pass a target from `npx vercel ls` (staged deployments make "previous" ambiguous: with no argument Vercel reported success while staying on the same deployment, observed 01-10-2026). Tested 01-10-2026: `./rollback.sh https://mypdf-n6nkbdzcq-gachichio.vercel.app` moved production from `mypdf-ot3x69qba` to `mypdf-n6nkbdzcq` in 18 s (limit 60 s); `vercel promote <url>` restored it.
 
 ## 9. Troubleshooting
-Ten failures that actually happened building M0 to M4 (01-10-2026):
+Eleven failures that actually happened building M0 to M4 (01-10-2026):
 1. **CI red at `npx eslint .`: "typescript-eslint does not support TS 7.0".** BUILD-BRIEF pins TypeScript 7.0.2. Fix: ESLint lints JS only (`eslint.config.js`); `tsc -b` is the TypeScript gate; `typescript-eslint` removed.
 2. **Render threw "Failed to construct ImageData: input data length is not equal to 4 * width * height".** MuPDF returns 3 bytes per pixel when alpha is off. Fix: expand RGB to RGBA in `engine.worker.ts` before `createImageBitmap`.
 3. **`corpus-check` reported 0 of 25 on a machine without qpdf.** The check swallowed the missing binary as a failure. Fix: it now exits 2 with "qpdf is not installed". Real result is from CI, where qpdf is installed.
@@ -93,6 +93,7 @@ Ten failures that actually happened building M0 to M4 (01-10-2026):
 8. **Playwright clicked the wrong place after switching Canvas tools.** The header height changes with the tool, so a box measured before the switch is stale. Measure after the tool bar settles.
 9. **Lint failed on `public/share-target-sw.js`.** Service-worker globals (`self`, `Response`, `File`) are declared for that file in `eslint.config.js`.
 10. **Production lost its service worker for about 15 minutes after an optimisation.** Setting `injectRegister: 'script-defer'` in `vite.config.ts` stopped the worker registering; R01 and R12 failed in CI and locally. Fix: leave `injectRegister` at its default. Lesson: after any build-config change, run the service-worker specs (R01, R12) before deploying, not only the specs for the area touched. Production was redeployed and R01 and R12 re-verified against https://mypdf.gachichio.org.
+11. **Share sheet did nothing on the Pixel (01-10-2026).** Causes and fixes: (a) the worker wrote the shared file to OPFS with `createWritable`, which is not dependable inside a service worker on Android, and any failure silently redirected home; it now uses the Cache API and redirects to `/?open=failed`, which shows a message. (b) the manifest accepted only the MIME type; it now also lists `.pdf`. (c) Android bakes share targets into the installed app (WebAPK) and refreshes it slowly: after a share-target change, uninstall myPDF and install it again from Chrome (menu, Install app), then reopen it once so the worker activates.
 Also seen: `vercel.app` aliases return 302 (Vercel deployment protection), so health checks use `vercel curl`, which carries the bypass. Candidates not yet hit: a stale service worker after an update, OPFS in private windows (M1), a Tesseract path 404 (M3).
 
 ## 10. Uninstall
