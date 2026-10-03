@@ -31,3 +31,28 @@ export function reorder(count: number, moving: number[], slot: number): number[]
   const at = Math.max(0, Math.min(slot, rest.length))
   return [...rest.slice(0, at), ...moving, ...rest.slice(at)]
 }
+
+/** Groups of page indexes (0-based) for Split. Returns null when the input does not make sense. */
+export function splitGroups(mode: 'every' | 'at' | 'ranges', n: number, text: string): number[][] | null {
+  const span = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i)
+  if (mode === 'every') {
+    const k = Math.floor(Number(text))
+    if (!Number.isFinite(k) || k < 1) return null
+    const out: number[][] = []
+    for (let i = 0; i < n; i += k) out.push(span(i, Math.min(n - 1, i + k - 1)))
+    return out
+  }
+  if (mode === 'at') {
+    const cuts = [...new Set(text.split(/[,\s]+/).filter(Boolean).map(Number))].sort((a, b) => a - b)
+    if (!cuts.length || cuts.some((c) => !Number.isInteger(c) || c < 1 || c >= n)) return null
+    const out: number[][] = []; let from = 0
+    for (const c of cuts) { out.push(span(from, c - 1)); from = c }
+    out.push(span(from, n - 1))
+    return out
+  }
+  const parts = text.split(',').map((p) => p.trim()).filter(Boolean)
+  if (!parts.length) return null
+  const out: number[][] = []
+  for (const p of parts) { const g = parseRanges(p, n); if (!g || !g.length) return null; out.push(g) }
+  return out
+}

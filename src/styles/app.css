@@ -14,3 +14,9 @@
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none } }
 
 .hero-mark { display: block; margin: 0 auto 1.5rem; width: 72px; height: 72px; }
+
+/* Signature fonts (F6). Self-hosted, Latin subset; licences sit beside the files in public/fonts. Loaded only when the Type tab asks for them. */
+@font-face { font-family: 'Sig Great Vibes'; src: url('/fonts/SigGreatVibes.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Sig Dancing Script'; src: url('/fonts/SigDancingScript.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Sig Caveat'; src: url('/fonts/SigCaveat.woff2') format('woff2'); font-display: swap; }
+@font-face { font-family: 'Sig Homemade Apple'; src: url('/fonts/SigHomemadeApple.woff2') format('woff2'); font-display: swap; }

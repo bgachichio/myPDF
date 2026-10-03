@@ -50,3 +50,26 @@ export async function toCanvas(page: Page, i = 0) {
   await page.getByTestId('dock-edit').click()
   await expect(page.getByTestId('page-canvas')).toHaveAttribute('data-rendered', String(i), { timeout: 15_000 })
 }
+
+const dirty = /NaN|undefined|Infinity|\[object/
+
+export async function audit(page: Page, label: string) {
+  const bad = await page.evaluate(() => {
+    const out: string[] = []
+    const vw = document.documentElement.clientWidth
+    if (document.documentElement.scrollWidth > vw + 1) out.push(`horizontal overflow ${document.documentElement.scrollWidth} > ${vw}`)
+    document.querySelectorAll<HTMLElement>('button, input:not([type=hidden]), select, textarea, [role=button]').forEach((el) => {
+      if (el.closest('[hidden]') || (el as HTMLInputElement).type === 'file') return
+      const r = el.getBoundingClientRect(); const cs = getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden' || r.width === 0) return
+      if (r.width < 43.5 || r.height < 43.5) {
+        const lbl = (el as HTMLInputElement).type === 'checkbox' ? el.closest('label') : null
+        const lr = lbl?.getBoundingClientRect()
+        if (!(lr && lr.height >= 43.5)) out.push(`${el.tagName} "${(el.getAttribute('aria-label') || el.textContent || el.getAttribute('data-testid') || '').trim().slice(0, 30)}" ${Math.round(r.width)}x${Math.round(r.height)}`)
+      }
+    })
+    return out
+  })
+  expect(bad, label).toEqual([])
+  expect(await page.locator('body').innerText(), label).not.toMatch(dirty)
+}

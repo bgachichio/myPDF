@@ -2,7 +2,7 @@
 // The only file that imports "mupdf" (BUILD-BRIEF section 3). Rect and Quad are MuPDF page space: points, origin top-left, y down.
 import * as Comlink from 'comlink'
 import type * as M from 'mupdf'
-import type { DocId, OutlineEntry, WordPara, PageInfo, SearchHit, SaveOptions, AnnotationInput, FormField, Rect, Quad, OcrWord, PdfEngine } from '@/engine/PdfEngine'
+import type { DocId, OutlineEntry, WordPara, PageInfo, SearchHit, SaveOptions, AnnotationInput, FormField, Rect, Quad, OcrWord, PdfEngine, TextStyle, Margins, StampPosition, SignPrepare } from '@/engine/PdfEngine'
 
 // mupdf is imported lazily: its module has a top-level await, and a worker that is still evaluating drops the first messages.
 let mupdf: typeof M
@@ -48,7 +48,7 @@ const pdfEscape = (t: string) => t.replace(/[\\()]/g, (c) => '\\' + c).replace(/
 const winAnsiOk = (t: string) => [...t].every((c) => c.charCodeAt(0) < 256)
 
 /** Append a content stream to a page, merging fonts and XObjects into its resources. Coordinates in the stream are PDF user space. */
-function appendContent(doc: Doc, pageIndex: number, stream: string, fonts: Record<string, M.PDFObject> = {}, xobjects: Record<string, M.PDFObject> = {}) {
+function appendContent(doc: Doc, pageIndex: number, stream: string, fonts: Record<string, M.PDFObject> = {}, xobjects: Record<string, M.PDFObject> = {}, gstates: Record<string, M.PDFObject> = {}) {
   const pageObj = doc.findPage(pageIndex)
   let res = pageObj.get('Resources')
   if (res.isNull()) {
@@ -56,7 +56,7 @@ function appendContent(doc: Doc, pageIndex: number, stream: string, fonts: Recor
     res = inherited.isNull() ? doc.newDictionary() : doc.addObject(inherited.resolve())
     pageObj.put('Resources', res)
   }
-  for (const [kind, entries] of [['Font', fonts], ['XObject', xobjects]] as const) {
+  for (const [kind, entries] of [['Font', fonts], ['XObject', xobjects], ['ExtGState', gstates]] as const) {
     if (!Object.keys(entries).length) continue
     let sub = res.get(kind)
     if (sub.isNull()) { sub = doc.newDictionary(); res.put(kind, sub) }
@@ -71,11 +71,30 @@ function appendContent(doc: Doc, pageIndex: number, stream: string, fonts: Recor
   pageObj.put('Contents', arr)
 }
 const baseFont = (doc: Doc, name = 'Helvetica') => doc.addSimpleFont(new mupdf.Font(name), 'Latin')
-/** MuPDF page space (y down) to PDF user space for an unrotated page. */
-function toPdfY(pageIndex: number, doc: Doc, y: number) {
-  const b = doc.loadPage(pageIndex).getBounds()
-  return b[3] - y
+/** PDF user space to page space for one page (rotation, crop box and the y flip included). */
+function pageTransform(doc: Doc, i: number): M.Matrix {
+  const p = doc.loadPage(i); const m = p.getTransform(); p.destroy(); return m
 }
+/** A matrix that draws a unit square, or text, upright and at (x, y) of the page as seen on screen (y down). `w` and `h` scale it. */
+function onPage(doc: Doc, i: number, x: number, y: number, w = 1, h = 1): M.Matrix {
+  return mupdf.Matrix.concat([w, 0, 0, -h, x, y], mupdf.Matrix.invert(pageTransform(doc, i)))
+}
+const mtx = (m: M.Matrix) => m.map((v) => (+v.toFixed(4)).toString()).join(' ')
+const rgb = (hexColor: string | undefined, fallback: [number, number, number] = [0, 0, 0]) => hex(hexColor, fallback).map((v) => v.toFixed(3)).join(' ')
+
+/** Width of a line of text in points, from the font's own advances. */
+function measure(font: M.Font, text: string, size: number): number {
+  let w = 0
+  for (const ch of text) { try { w += font.advanceGlyph(font.encodeCharacter(ch.codePointAt(0)!)) * size } catch { w += size * 0.5 } }
+  return w
+}
+
+const FACES: Record<TextStyle['font'], [string, string, string, string]> = {
+  sans: ['Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique', 'Helvetica-BoldOblique'],
+  serif: ['Times-Roman', 'Times-Bold', 'Times-Italic', 'Times-BoldItalic'],
+  mono: ['Courier', 'Courier-Bold', 'Courier-Oblique', 'Courier-BoldOblique'],
+}
+const faceOf = (s: Pick<TextStyle, 'font' | 'bold' | 'italic'>) => FACES[s.font][(s.bold ? 1 : 0) + (s.italic ? 2 : 0) === 3 ? 3 : s.italic ? 2 : s.bold ? 1 : 0]
 
 async function downscaleImages(doc: Doc) {
   const seen = new Set<number>()
@@ -300,7 +319,8 @@ const raw: PdfEngine = {
     if (a.rect) annot.setRect(a.rect)
     if (a.type === 'freetext') annot.setDefaultAppearance('Helv', 12, [0, 0, 0])
     if (a.contents !== undefined) annot.setContents(a.contents)
-    if (a.type === 'square' || a.type === 'circle') annot.setBorderWidth(1.5)
+    if (a.type === 'square' || a.type === 'circle') annot.setBorderWidth(a.borderWidth ?? 1.5)
+    if (a.type === 'ink') annot.setBorderWidth(a.borderWidth ?? 2)
     annot.update()
     page.update()
     return String(annot.getObject().asIndirect())
@@ -329,7 +349,7 @@ const raw: PdfEngine = {
       : isSerif ? `Times-${isBold && isItalic ? 'BoldItalic' : isBold ? 'Bold' : isItalic ? 'Italic' : 'Roman'}`
       : `Helvetica${isBold || isItalic ? '-' : ''}${isBold ? 'Bold' : ''}${isItalic ? 'Oblique' : ''}`
     const original = new RegExp(`^(?:[A-Z]{6}\\+)?(${family}|Arial|ArialMT)`, 'i').test(fontName)
-    const stream = `q 0 g BT /FRepl ${size.toFixed(2)} Tf ${r[0].toFixed(2)} ${toPdfY(pageIndex, doc, baseline).toFixed(2)} Td (${pdfEscape(text)}) Tj ET Q`
+    const stream = `q 0 g BT /FRepl ${size.toFixed(2)} Tf ${mtx(onPage(doc, pageIndex, r[0], baseline))} Tm (${pdfEscape(text)}) Tj ET Q`
     appendContent(doc, pageIndex, stream, { FRepl: baseFont(doc, face) })
     page.update()
     return { usedFallbackFont: !original || !winAnsiOk(text) }
@@ -364,9 +384,9 @@ const raw: PdfEngine = {
     throw new Error(`No field ${name}`)
   },
 
-  async flatten(id) {
+  async flatten(id, annotations = false) {
     const doc = D(id)
-    doc.bake(false, true)
+    doc.bake(annotations, true)
     const root = doc.getTrailer().get('Root')
     root.delete('AcroForm')
     for (let i = 0; i < doc.countPages(); i++) {
@@ -380,8 +400,7 @@ const raw: PdfEngine = {
     const doc = D(id)
     const ref = doc.addImage(new mupdf.Image(new Uint8Array(await png.arrayBuffer())))
     const [x0, y0, x1, y1] = rect
-    const w = x1 - x0, h = y1 - y0, y = toPdfY(pageIndex, doc, y1)
-    appendContent(doc, pageIndex, `q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x0.toFixed(2)} ${y.toFixed(2)} cm /ImPlaced Do Q`, {}, { ImPlaced: ref })
+    appendContent(doc, pageIndex, `q ${mtx(onPage(doc, pageIndex, x0, y1, x1 - x0, y1 - y0))} cm /ImPlaced Do Q`, {}, { ImPlaced: ref })
   },
 
   async markRedaction(id, pageIndex, quads) {
@@ -406,31 +425,48 @@ const raw: PdfEngine = {
       page.applyRedactions(true, mupdf.PDFPage.REDACT_IMAGE_PIXELS, mupdf.PDFPage.REDACT_LINE_ART_REMOVE_IF_COVERED, mupdf.PDFPage.REDACT_TEXT_REMOVE)
       page.update()
     }
-    // Verify on the document as it now stands: re-extract the text under every marked region.
+    // Verify on the document as it now stands: no glyph may remain whose box overlaps the inside of a marked region.
+    // (Reading text back with a selection would also pick up the words beside the region, which are meant to stay.)
     let residualMatches = 0
-    for (const { page: i, rect } of regions) {
-      const st = doc.loadPage(i).toStructuredText('preserve-whitespace')
+    const byPage = new Map<number, Rect[]>()
+    for (const { page: i, rect } of regions) byPage.set(i, [...(byPage.get(i) ?? []), rect])
+    for (const [i, rects] of byPage) {
+      const glyphs: Rect[] = []
+      const p = doc.loadPage(i)
+      p.toStructuredText('preserve-whitespace').walk({ onChar(c, _o, _f, _s, q) {
+        if (c.trim()) glyphs.push([Math.min(q[0], q[2], q[4], q[6]), Math.min(q[1], q[3], q[5], q[7]), Math.max(q[0], q[2], q[4], q[6]), Math.max(q[1], q[3], q[5], q[7])])
+      } })
+      p.destroy()
       const inset = 1
-      const got = st.copy([rect[0] + inset, rect[1] + inset], [rect[2] - inset, rect[3] - inset]).trim()
-      if (got.length) residualMatches++
+      for (const r of rects) if (glyphs.some((g) => g[0] < r[2] - inset && g[2] > r[0] + inset && g[1] < r[3] - inset && g[3] > r[1] + inset)) residualMatches++
     }
     return { verified: residualMatches === 0, residualMatches }
   },
 
-  async stamp(id, kind, text) {
+  async stamp(id, kind, text, opts = {}) {
     const doc = D(id)
-    const font = baseFont(doc)
-    for (let i = 0; i < doc.countPages(); i++) {
+    const font = baseFont(doc), metric = new mupdf.Font('Helvetica')
+    const n = doc.countPages()
+    const gs = doc.addObject({ Type: 'ExtGState', ca: opts.opacity ?? 1, CA: opts.opacity ?? 1 })
+    for (let i = 0; i < n; i++) {
       const b = doc.loadPage(i).getBounds()
       const w = b[2] - b[0], h = b[3] - b[1]
       if (kind === 'pageNumbers') {
-        const label = String(i + 1)
-        appendContent(doc, i, `q 0.25 g BT /FStamp 10 Tf ${(w / 2 - label.length * 2.8).toFixed(2)} 20 Td (${label}) Tj ET Q`, { FStamp: font })
+        const first = opts.start ?? 1, num = first + i, total = first + n - 1
+        const label = opts.format === 'n-of-total' ? `${num} of ${total}` : opts.format === 'page-n' ? `Page ${num}` : String(num)
+        const size = opts.size ?? 10, tw = measure(metric, label, size)
+        const pos: StampPosition = opts.position ?? 'bottom-center'
+        const x = pos.endsWith('left') ? 28 : pos.endsWith('right') ? w - 28 - tw : (w - tw) / 2
+        const y = pos.startsWith('top') ? 28 + size : h - 22
+        appendContent(doc, i, `q /GSn gs ${rgb(opts.color, [0.25, 0.25, 0.25])} rg BT /FStamp ${size} Tf ${mtx(onPage(doc, i, x, y))} Tm (${pdfEscape(label)}) Tj ET Q`, { FStamp: font }, {}, { GSn: gs })
       } else {
         const t = (text || 'DRAFT').slice(0, 40)
         const size = Math.min(80, (w * 0.9) / Math.max(1, t.length * 0.62))
-        const c = Math.SQRT1_2
-        appendContent(doc, i, `q 0.8 g BT /FStamp ${size.toFixed(1)} Tf ${c.toFixed(4)} ${c.toFixed(4)} ${(-c).toFixed(4)} ${c.toFixed(4)} ${(w * 0.12).toFixed(1)} ${(h * 0.3).toFixed(1)} Tm (${pdfEscape(t)}) Tj ET Q`, { FStamp: font })
+        const tw = measure(metric, t, size), c = Math.SQRT1_2
+        // Centred on the page and tilted 45 degrees, rising to the right as seen on screen (page space, y down).
+        const onScreen: M.Matrix = [c, -c, -c, -c, w / 2 - (tw / 2) * c - 0.35 * size * c, h / 2 + (tw / 2) * c - 0.35 * size * c]
+        const tm = mupdf.Matrix.concat(onScreen, mupdf.Matrix.invert(pageTransform(doc, i)))
+        appendContent(doc, i, `q /GSn gs ${rgb(opts.color, [0.8, 0.8, 0.8])} rg BT /FStamp ${size.toFixed(1)} Tf ${mtx(tm)} Tm (${pdfEscape(t)}) Tj ET Q`, { FStamp: font }, {}, { GSn: gs })
       }
     }
   },
@@ -443,7 +479,7 @@ const raw: PdfEngine = {
       const size = Math.max(4, w.rect[3] - w.rect[1])
       const natural = w.text.length * size * 0.5 || 1
       const tz = Math.max(10, Math.min(400, ((x1 - x0) / natural) * 100))
-      return `BT 3 Tr /FOcr ${size.toFixed(1)} Tf ${tz.toFixed(0)} Tz ${x0.toFixed(2)} ${toPdfY(pageIndex, doc, y1).toFixed(2)} Td (${pdfEscape(w.text)}) Tj ET`
+      return `BT 3 Tr /FOcr ${size.toFixed(1)} Tf ${tz.toFixed(0)} Tz ${mtx(onPage(doc, pageIndex, x0, y1))} Tm (${pdfEscape(w.text)}) Tj ET`
     })
     appendContent(doc, pageIndex, `q ${ops.join('\n')} Q`, { FOcr: font })
   },
@@ -459,7 +495,11 @@ const raw: PdfEngine = {
     const parts: string[] = []
     if (opts.compress) parts.push('garbage=compact', 'compress')
     // MuPDF keeps an opened file's old encryption unless told otherwise, so an export without a password decrypts (F10).
-    if (opts.password) parts.push('encrypt=aes-256', `user-password=${opts.password}`, `owner-password=${opts.password}`)
+    if (opts.restrict && opts.ownerPassword) {
+      // Bits of the PDF permission word: 4 print, 8 edit, 16 copy, 32 annotate, 256 forms, 512 accessibility, 1024 assemble, 2048 print in high quality.
+      const allowed = (opts.restrict.print ? 4 | 2048 : 0) | (opts.restrict.edit ? 8 | 32 | 256 | 1024 : 0) | (opts.restrict.copy ? 16 : 0) | 512
+      parts.push('encrypt=aes-256', `user-password=${opts.password ?? ''}`, `owner-password=${opts.ownerPassword}`, `permissions=${(0xfffff0c0 | allowed) | 0}`)
+    } else if (opts.password) parts.push('encrypt=aes-256', `user-password=${opts.password}`, `owner-password=${opts.ownerPassword || opts.password}`)
     else if (opts.decrypt) parts.push('encrypt=none')
     return doc.saveToBuffer(parts.join(',')).asUint8Array().slice()
   },
@@ -473,6 +513,111 @@ const raw: PdfEngine = {
   async setMetadata(id, meta) {
     const doc = D(id)
     for (const [k, v] of Object.entries(meta)) doc.setMetaData(k.includes(':') ? k : `info:${k}`, v)
+  },
+
+  async addText(id, pageIndex, rect, text, style) {
+    const doc = D(id)
+    const face = faceOf(style), font = new mupdf.Font(face)
+    const size = Math.max(4, Math.min(200, style.size)), lead = size * 1.2, maxW = Math.max(rect[2] - rect[0], size)
+    let replaced = false
+    const clean = [...text].map((c) => (c.charCodeAt(0) < 256 && (c.charCodeAt(0) >= 32 || c === '\n') ? c : c === '\t' ? ' ' : (replaced = true, '?'))).join('')
+    const lines: string[] = []
+    for (const para of clean.split('\n')) {
+      let cur = ''
+      for (const word of para.split(' ')) {
+        const tryLine = cur ? `${cur} ${word}` : word
+        if (cur && measure(font, tryLine, size) > maxW) { lines.push(cur); cur = word } else cur = tryLine
+      }
+      lines.push(cur)
+    }
+    const ops = lines.map((l, k) => `BT /FTxt ${size} Tf ${mtx(onPage(doc, pageIndex, rect[0], rect[1] + size * 0.95 + k * lead))} Tm (${pdfEscape(l)}) Tj ET`)
+    appendContent(doc, pageIndex, `q ${rgb(style.color)} rg\n${ops.join('\n')}\nQ`, { FTxt: doc.addSimpleFont(font, 'Latin') })
+    return !replaced
+  },
+
+  async eraseInk(id, pageIndex, point, radius) {
+    const page = D(id).loadPage(pageIndex)
+    let removed = 0
+    for (const a of page.getAnnotations()) {
+      if (a.getType() !== 'Ink') continue
+      const reach = radius + a.getBorderWidth() / 2
+      const hit = a.getInkList().some((stroke) => stroke.some((pt, k) => {
+        const [x0, y0] = pt, [x1, y1] = stroke[k + 1] ?? pt
+        const dx = x1 - x0, dy = y1 - y0, len2 = dx * dx + dy * dy
+        const t = len2 ? Math.max(0, Math.min(1, ((point[0] - x0) * dx + (point[1] - y0) * dy) / len2)) : 0
+        return Math.hypot(point[0] - (x0 + t * dx), point[1] - (y0 + t * dy)) <= reach
+      }))
+      if (hit) { page.deleteAnnotation(a); removed++ }
+    }
+    if (removed) page.update()
+    return removed
+  },
+
+  async crop(id, pages, m: Margins) {
+    const doc = D(id)
+    for (const i of pages) {
+      const t = pageTransform(doc, i), p = doc.loadPage(i), b = p.getBounds(); p.destroy()
+      const W = b[2] - b[0], H = b[3] - b[1]
+      if (m.left + m.right >= W - 10 || m.top + m.bottom >= H - 10) throw new Error('The margins leave no page')
+      // The trim is drawn on screen, so map the kept rectangle back to the page's own coordinates.
+      const box = mupdf.Rect.transform([m.left, m.top, W - m.right, H - m.bottom], mupdf.Matrix.invert(t))
+      doc.findPage(i).put('CropBox', [Math.min(box[0], box[2]), Math.min(box[1], box[3]), Math.max(box[0], box[2]), Math.max(box[1], box[3])].map((v) => +v.toFixed(3)))
+    }
+  },
+
+  async saveForSigning(id, o: SignPrepare) {
+    const doc = D(id)
+    const sig = doc.addObject({
+      Type: 'Sig', Filter: 'Adobe.PPKLite', SubFilter: 'adbe.pkcs7.detached',
+      ByteRange: [0, 1111111111, 2222222222, 3333333333],
+      Name: `(${o.signer})`, M: `(${o.date})`,
+    })
+    if (o.reason) sig.put('Reason', `(${o.reason})`)
+    if (o.location) sig.put('Location', `(${o.location})`)
+    if (o.contact) sig.put('ContactInfo', `(${o.contact})`)
+    sig.put('Contents', doc.newByteString(new Uint8Array(o.reserve).fill(0xab)))
+    const pageObj = doc.findPage(o.page)
+    const pageNum = pageObj.asIndirect()
+    const t = pageTransform(doc, o.page)
+    const user = o.rect ? mupdf.Rect.transform(o.rect, mupdf.Matrix.invert(t)) : [0, 0, 0, 0]
+    const rectU: Rect = [Math.min(user[0], user[2]), Math.min(user[1], user[3]), Math.max(user[0], user[2]), Math.max(user[1], user[3])]
+    const widget = doc.addObject({ Type: 'Annot', Subtype: 'Widget', FT: 'Sig', T: '(Signature1)', F: 132, Rect: rectU, V: sig })
+    if (pageNum > 0) widget.put('P', doc.newIndirect(pageNum))
+    if (o.rect) {
+      const w = rectU[2] - rectU[0], h = rectU[3] - rectU[1], size = Math.max(5, Math.min(9, h / 5))
+      const font = new mupdf.Font('Helvetica')
+      const fit = (str: string) => { let r = str; while (r.length > 1 && measure(font, r, size) > w - 8) r = r.slice(0, -2); return r }
+      const lines = [`Digitally signed by ${o.signer}`, `Date: ${o.date.replace(/^D:(\d{4})(\d{2})(\d{2}).*$/, '$3-$2-$1')}`, o.reason && `Reason: ${o.reason}`, o.location && `Location: ${o.location}`].filter(Boolean) as string[]
+      const ops = lines.slice(0, Math.max(1, Math.floor((h - 6) / (size * 1.25)))).map((l, k) => `BT /Helv ${size} Tf 4 ${(h - 4 - size - k * size * 1.25).toFixed(2)} Td (${pdfEscape(fit(l))}) Tj ET`)
+      const ap = doc.addStream(`q 0.95 0.98 0.96 rg 0 0 ${w.toFixed(2)} ${h.toFixed(2)} re f 0.14 0.45 0.32 RG 0.75 w 0.4 0.4 ${(w - 0.8).toFixed(2)} ${(h - 0.8).toFixed(2)} re S 0.1 g\n${ops.join('\n')}\nQ`,
+        { Type: 'XObject', Subtype: 'Form', BBox: [0, 0, +w.toFixed(2), +h.toFixed(2)], Resources: { Font: { Helv: baseFont(doc) } } })
+      widget.put('AP', { N: ap })
+    }
+    // Attach the widget to the page and to the form, and declare that the file holds signatures.
+    let annots = pageObj.get('Annots')
+    if (annots.isNull()) { annots = doc.newArray(); pageObj.put('Annots', annots) }
+    annots.push(widget)
+    const root = doc.getTrailer().get('Root')
+    let form = root.get('AcroForm')
+    if (form.isNull()) { form = doc.newDictionary(); root.put('AcroForm', form) }
+    let fields = form.get('Fields')
+    if (fields.isNull()) { fields = doc.newArray(); form.put('Fields', fields) }
+    fields.push(widget)
+    form.put('SigFlags', 3)
+    if (o.stripMetadata) { const tr = doc.getTrailer(); tr.delete('Info'); root.delete('Metadata') }
+    const parts = o.compress ? ['garbage=compact', 'compress'] : []
+    if (o.compress) await downscaleImages(doc)
+    return doc.saveToBuffer(parts.join(',')).asUint8Array().slice()
+  },
+
+  async addLink(id, pageIndex, rect, target) {
+    const doc = D(id), page = doc.loadPage(pageIndex)
+    const uri = 'uri' in target
+      ? target.uri.trim()
+      : doc.formatLinkURI({ chapter: 0, page: target.page, type: 'Fit', x: 0, y: 0, width: 0, height: 0, zoom: 0 })
+    if (!uri) throw new Error('A link needs an address')
+    page.createLink(rect, uri)
+    page.update()
   },
 
   async close(id) { docs.get(id)?.destroy(); docs.delete(id) },

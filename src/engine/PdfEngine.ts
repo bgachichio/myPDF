@@ -5,10 +5,20 @@ export type Quad = [number, number, number, number, number, number, number, numb
 
 export interface PageInfo { index: number; width: number; height: number; rotation: 0 | 90 | 180 | 270 }
 export interface SearchHit { page: number; quads: Quad[] }
-export interface SaveOptions { compress: boolean; stripMetadata: boolean; password?: string; /** Export only: drop the opened file's old password (F10). Snapshots and recents keep it. */ decrypt?: boolean }
+/** Added 03-10-2026 (decision log): what a reader may do with a protected file. Needs an owner password to take effect. */
+export interface Restrict { print: boolean; copy: boolean; edit: boolean }
+export interface SaveOptions {
+  compress: boolean; stripMetadata: boolean; password?: string
+  /** Export only: drop the opened file's old password (F10). Snapshots and recents keep it. */
+  decrypt?: boolean
+  /** Added 03-10-2026: owner password plus the actions the file still allows (F20). The open password is `password`, and may be empty. */
+  ownerPassword?: string; restrict?: Restrict
+}
 
 export type AnnotationType = 'highlight' | 'underline' | 'strikeout' | 'squiggly' | 'freetext' | 'ink' | 'stamp' | 'square' | 'circle' | 'note'
 export interface AnnotationInput {
+  /** `borderWidth` is the pen width of an ink stroke or the outline of a box or circle, in points. */
+  borderWidth?: number
   type: AnnotationType
   page: number
   quads?: Quad[]
@@ -27,6 +37,21 @@ export interface FormField {
   rect: Rect
   page: number
   options?: string[]
+}
+
+/** Added 03-10-2026 (decision log): typed text placed on a page (F17). Colour is #rrggbb. */
+export interface TextStyle { font: 'sans' | 'serif' | 'mono'; size: number; bold: boolean; italic: boolean; color: string }
+export interface Margins { top: number; right: number; bottom: number; left: number }
+export type StampPosition = 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'
+export interface StampOptions { position?: StampPosition; format?: 'n' | 'n-of-total' | 'page-n'; start?: number; size?: number; color?: string; opacity?: number }
+/** Added 03-10-2026 (F19). `rect` is in page space; null makes an invisible signature. Everything is plain text; the caller finishes the cryptography. */
+export interface SignPrepare {
+  page: number; rect: Rect | null; signer: string; reason: string; location: string; contact: string
+  /** PDF date string, for example D:20261003120000Z */
+  date: string
+  /** Bytes reserved for the signature container. */
+  reserve: number
+  compress: boolean; stripMetadata: boolean
 }
 
 export interface WordRun { text: string; bold: boolean; italic: boolean }
@@ -50,11 +75,12 @@ export interface PdfEngine {
   replaceText(id: DocId, page: number, span: Quad[], text: string): Promise<{ usedFallbackFont: boolean }>
   fields(id: DocId): Promise<FormField[]>
   setField(id: DocId, name: string, value: string | boolean): Promise<void>
-  flatten(id: DocId): Promise<void>
+  /** `annotations` (added 03-10-2026, F24) also makes highlights, ink, shapes and notes permanent, so they cannot be moved or removed in another reader. */
+  flatten(id: DocId, annotations?: boolean): Promise<void>
   placeImage(id: DocId, page: number, rect: Rect, png: Blob): Promise<void>
   markRedaction(id: DocId, page: number, quads: Quad[]): Promise<string>
   applyRedactions(id: DocId): Promise<{ verified: boolean; residualMatches: number }>
-  stamp(id: DocId, kind: 'pageNumbers' | 'watermark', text?: string): Promise<void>
+  stamp(id: DocId, kind: 'pageNumbers' | 'watermark', text?: string, opts?: StampOptions): Promise<void>
   save(id: DocId, opts: SaveOptions): Promise<Uint8Array>
   setMetadata(id: DocId, meta: Record<string, string>): Promise<void>
   /** Added at M4 (decision log 01-10-2026): document outline (F01), flattened with nesting depth. */
@@ -71,5 +97,15 @@ export interface PdfEngine {
   textIn(id: DocId, page: number, rect: Rect): Promise<string>
   /** Added at M3 (decision log 01-10-2026): invisible OCR text layer, one entry per recognised word. Rect is in page space. */
   addTextLayer(id: DocId, page: number, words: OcrWord[]): Promise<void>
+  /** Added 03-10-2026 (F17): typed text with a chosen face, size and colour, wrapped inside `rect`. Returns false when a character had to be replaced because the face cannot draw it. */
+  addText(id: DocId, page: number, rect: Rect, text: string, style: TextStyle): Promise<boolean>
+  /** Added 03-10-2026 (F18): removes every ink stroke within `radius` points of `point`. Returns how many were removed. */
+  eraseInk(id: DocId, page: number, point: [number, number], radius: number): Promise<number>
+  /** Added 03-10-2026 (F21): trims the visible page by the given margins (points, as seen on screen). */
+  crop(id: DocId, pages: number[], margins: Margins): Promise<void>
+  /** Added 03-10-2026 (F19): saves the file with an empty signature field and a reserved, marked signature container. Not for the editing session. */
+  saveForSigning(id: DocId, o: SignPrepare): Promise<Uint8Array>
+  /** Added 03-10-2026 (F25): a clickable area that opens a web address or jumps to a page (0-based). */
+  addLink(id: DocId, page: number, rect: Rect, target: { uri: string } | { page: number }): Promise<void>
   close(id: DocId): Promise<void>
 }

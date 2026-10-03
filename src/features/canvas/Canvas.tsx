@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, MousePointer2, Type, Highlighter, PenLine, Signature, EyeOff, TextCursorInput, Undo2, Redo2, Search, Settings, ListTree, ImagePlus } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, MousePointer2, Type, Highlighter, PenLine, Signature, EyeOff, TextCursorInput, Undo2, Redo2, Search, Settings, ListTree, ImagePlus, Eraser, PenTool } from 'lucide-react'
 import { useSession } from '@/app/session'
 import { getEngine } from '@/engine/mupdf/client'
-import type { AnnotationType, FormField, OutlineEntry, Quad, Rect, SearchHit } from '@/engine/PdfEngine'
+import type { AnnotationType, FormField, OutlineEntry, Quad, Rect, SearchHit, TextStyle } from '@/engine/PdfEngine'
 import Sheet, { primaryBtn, primaryStyle, tonalBtn, tonalStyle, fieldStyle } from '@/features/common/Sheet'
 import SignSheet from '@/features/canvas/SignSheet'
+import { PRESETS, findMatches } from '@/features/canvas/patterns'
 
 type Tool = 'select' | 'edit' | 'markup' | 'draw' | 'sign' | 'image' | 'redact' | 'fields'
-type Markup = 'highlight' | 'underline' | 'strikeout' | 'freetext' | 'square' | 'circle' | 'note'
-type Pop = null | { kind: 'edit'; rect: Rect; value: string } | { kind: 'text'; rect: Rect; value: string; note: boolean }
+type Markup = 'highlight' | 'underline' | 'strikeout' | 'freetext' | 'square' | 'circle' | 'note' | 'link'
+type Pop = null | { kind: 'edit'; rect: Rect; value: string } | { kind: 'text'; rect: Rect; value: string; note: boolean } | { kind: 'link'; rect: Rect; mode: 'web' | 'page'; value: string }
+
+/** Colours offered for pens and typed text. Names are for the screen reader. */
+const COLOURS = [{ name: 'Blue', value: '#1a3fb0' }, { name: 'Black', value: '#111111' }, { name: 'Red', value: '#c2410c' }, { name: 'Green', value: '#237352' }] as const
+const WIDTHS = [{ name: 'Thin', value: 1.5 }, { name: 'Medium', value: 3 }, { name: 'Thick', value: 6 }] as const
+const ERASER_RADIUS = 8
 
 const quadOf = (r: Rect): Quad => [r[0], r[1], r[2], r[1], r[0], r[3], r[2], r[3]]
 const boxOf = (q: Quad): Rect => [Math.min(q[0], q[2], q[4], q[6]), Math.min(q[1], q[3], q[5], q[7]), Math.max(q[0], q[2], q[4], q[6]), Math.max(q[1], q[3], q[5], q[7])]
@@ -26,6 +32,11 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
   const [ink, setInk] = useState<[number, number][]>([])
   const [pop, setPop] = useState<Pop>(null)
   const [signOpen, setSignOpen] = useState(false)
+  const [pen, setPen] = useState<{ color: string; width: number }>({ color: COLOURS[0].value, width: 3 })
+  const [eraser, setEraser] = useState(false)
+  const erasePts = useRef<[number, number][]>([])
+  const [textStyle, setTextStyle] = useState<TextStyle>({ font: 'sans', size: 12, bold: false, italic: false, color: '#111111' })
+  const fieldTarget = useRef<Rect | null>(null)
   const [armed, setArmed] = useState<{ png: Blob; ratio: number } | null>(null)
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<SearchHit[] | null>(null)
@@ -114,20 +125,40 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
     await run('Marking', async (e, id) => { for (const h of found) { await e.markRedaction(id, h.page, h.quads); count += h.quads.length } }, { marks: marks + found.reduce((n, h) => n + h.quads.length, 0) })
     notify(`${count} ${count === 1 ? 'area' : 'areas'} marked for redaction`)
   }
+  /** Finds every match of a ready-made pattern in the whole file and marks each one. Nothing is removed until Apply. */
+  const markPreset = async (id: string) => {
+    const preset = PRESETS.find((p) => p.id === id); if (!preset) return
+    const engine = getEngine(), found = new Set<string>()
+    for (let i = 0; i < session.pages.length; i++) for (const m of findMatches(await engine.text(session.id, i), preset.re)) found.add(m)
+    if (!found.size) return notify(`No ${preset.label.toLowerCase()} found. If this file is a scan, run OCR first.`)
+    const hits: Awaited<ReturnType<typeof engine.search>> = []
+    for (const needle of [...found].slice(0, 300)) hits.push(...await engine.search(session.id, needle))
+    const count = hits.reduce((n, h) => n + h.quads.length, 0)
+    if (!count) return notify('Found the text but could not locate it on the page.')
+    await run('Marking', async (e, docId) => { for (const h of hits) await e.markRedaction(docId, h.page, h.quads) }, { marks: marks + count })
+    notify(`${count} ${count === 1 ? 'area' : 'areas'} marked: ${preset.label.toLowerCase()}. Check them, then apply.`)
+  }
   const applyRedaction = async () => {
     let result = { verified: false, residualMatches: 0 }
     await run('Applying redaction', async (e, id) => { result = await e.applyRedactions(id) }, { marks: 0 })
     notify(result.verified ? 'Redaction applied and verified: no text is left under the marked areas.' : `Redaction applied, but ${result.residualMatches} marked ${result.residualMatches === 1 ? 'area still holds' : 'areas still hold'} text. Check before sharing.`)
   }
 
-  const annotate = (type: AnnotationType, extra: Partial<{ rect: Rect; quads: Quad[]; contents: string; inkList: [number, number][][]; color: string; opacity: number }>) =>
+  const annotate = (type: AnnotationType, extra: Partial<{ rect: Rect; quads: Quad[]; contents: string; inkList: [number, number][][]; color: string; opacity: number; borderWidth: number }>) =>
     run('Marking up', (e, id) => e.annotate(id, page, { type, page, ...extra }).then(() => undefined))
 
   const placeSignature = async (rect: Rect) => {
     if (!armed) return
     const png = armed.png
     await run(tool === 'image' ? 'Adding image' : 'Signing', (e, id) => e.placeImage(id, page, rect, png))
-    setArmed(null)
+    // The mark stays armed so a second tap places another (initials on every page, a tick beside each line). Choosing another tool puts it down.
+  }
+  /** Fit a mark inside a signature field, centred, keeping its proportions. */
+  const placeInField = async (png: Blob, ratio: number, field: Rect) => {
+    const fw = field[2] - field[0] - 6, fh = field[3] - field[1] - 6
+    const w = Math.min(fw, fh / ratio), h = w * ratio
+    const cx = (field[0] + field[2]) / 2, cy = (field[1] + field[3]) / 2
+    await run('Signing', (e, id) => e.placeImage(id, page, [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], png))
   }
 
   const onDown = (e: React.PointerEvent) => {
@@ -136,12 +167,12 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
     if (tool === 'image' && !armed) return void document.getElementById('insert-image')?.click()
     overlay.current!.setPointerCapture(e.pointerId)
     start.current = at(e)
-    if (tool === 'draw') setInk([at(e)])
+    if (tool === 'draw') { setInk([at(e)]); erasePts.current = [at(e)] }
     else setDraft([...start.current, ...start.current] as Rect)
   }
   const onMove = (e: React.PointerEvent) => {
     if (!start.current) return
-    if (tool === 'draw') setInk((p) => { const [x, y] = at(e), l = p[p.length - 1]; return Math.hypot(x - l[0], y - l[1]) * s < 2 ? p : [...p, [x, y]] })
+    if (tool === 'draw') setInk((p) => { const [x, y] = at(e), l = p[p.length - 1]; if (eraser) erasePts.current.push([x, y]); return Math.hypot(x - l[0], y - l[1]) * s < 2 ? p : [...p, [x, y]] })
     else setDraft(norm(start.current, at(e)))
   }
   const onUp = async (e: React.PointerEvent) => {
@@ -156,7 +187,18 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
       const q = await getEngine().wordAt(session.id, page, end)
       if (q) { r = boxOf(q); tiny = false }
     }
-    if (tool === 'draw') { const pts = ink; setInk([]); if (pts.length > 1) await annotate('ink', { inkList: [pts], color: '#1a3fb0' }); return }
+    if (tool === 'draw') {
+      const pts = ink; setInk([])
+      if (eraser) {
+        const swept = erasePts.current; erasePts.current = []
+        let gone = 0
+        await run('Erasing', async (e, id) => { for (const p of swept) gone += await e.eraseInk(id, page, p, ERASER_RADIUS) })
+        if (!gone) notify('No pen strokes there. The eraser removes strokes drawn with the pen.')
+        return
+      }
+      if (pts.length > 1) await annotate('ink', { inkList: [pts], color: pen.color, borderWidth: pen.width })
+      return
+    }
     if ((tool === 'sign' || tool === 'image') && armed) {
       const w = tiny ? 150 : r[2] - r[0], h = tiny ? 150 * armed.ratio : r[3] - r[1]
       return placeSignature(tiny ? [end[0] - w / 2, end[1] - h / 2, end[0] + w / 2, end[1] + h / 2] : r)
@@ -173,6 +215,7 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
       if (markup === 'note') return setPop({ kind: 'text', rect: [end[0], end[1], end[0] + 24, end[1] + 24], value: '', note: true })
       if (tiny) return
       if (markup === 'freetext') return setPop({ kind: 'text', rect: r, value: '', note: false })
+      if (markup === 'link') return setPop({ kind: 'link', rect: r, mode: 'web', value: 'https://' })
       if (markup === 'square' || markup === 'circle') return annotate(markup, { rect: r, color: '#c2410c' })
       return annotate(markup, { quads: [quadOf(r)] })
     }
@@ -186,7 +229,7 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
   )
   const iconBtn = 'flex items-center justify-center rounded-full w-[44px] h-[44px] shrink-0 disabled:opacity-40'
   const pageHits = hits?.find((h) => h.page === page)
-  const MARKUPS: [Markup, string][] = [['highlight', 'Highlight'], ['underline', 'Underline'], ['strikeout', 'Strike'], ['freetext', 'Text box'], ['square', 'Box'], ['circle', 'Circle'], ['note', 'Note']]
+  const MARKUPS: [Markup, string][] = [['highlight', 'Highlight'], ['underline', 'Underline'], ['strikeout', 'Strike'], ['freetext', 'Text box'], ['square', 'Box'], ['circle', 'Circle'], ['note', 'Note'], ['link', 'Link']]
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--md-surface-container)', color: 'var(--md-on-surface)' }}>
@@ -218,8 +261,22 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
         </div>
       )}
       {tool === 'edit' && <p className="px-4 py-2 text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Tap a word, or drag across several, to change them. Edits stay on one line.</p>}
-      {tool === 'draw' && <p className="px-4 py-2 text-sm" style={{ color: 'var(--md-on-surface-variant)' }}>Draw with your finger or mouse.</p>}
-      {tool === 'sign' && armed && <p className="px-4 py-2 text-sm" role="status">Tap where the signature goes, or drag a box.</p>}
+      {tool === 'draw' && (
+        <div className="px-4 py-2 flex flex-wrap items-center gap-2" role="group" aria-label="Pen">
+          <button className={`${tonalBtn} flex items-center gap-2`} style={!eraser ? primaryStyle : tonalStyle} aria-pressed={!eraser} data-testid="pen-on" onClick={() => setEraser(false)}><PenTool size={18} aria-hidden="true" />Pen</button>
+          <button className={`${tonalBtn} flex items-center gap-2`} style={eraser ? primaryStyle : tonalStyle} aria-pressed={eraser} data-testid="eraser-on" onClick={() => setEraser(true)}><Eraser size={18} aria-hidden="true" />Eraser</button>
+          {!eraser && <>
+            <span className="flex gap-1" role="radiogroup" aria-label="Pen colour">{COLOURS.map((c) => <button key={c.value} role="radio" aria-checked={pen.color === c.value} aria-label={c.name} data-testid={`pen-colour-${c.name.toLowerCase()}`} onClick={() => setPen({ ...pen, color: c.value })}
+              className="w-[44px] h-[44px] rounded-full" style={{ background: c.value, boxShadow: pen.color === c.value ? '0 0 0 3px var(--md-surface), 0 0 0 5px var(--md-primary)' : '0 0 0 1px var(--md-outline)' }} />)}</span>
+            <span className="flex gap-1" role="radiogroup" aria-label="Pen width">{WIDTHS.map((w) => <button key={w.value} role="radio" aria-checked={pen.width === w.value} data-testid={`pen-width-${w.name.toLowerCase()}`} className={tonalBtn} style={pen.width === w.value ? primaryStyle : tonalStyle} onClick={() => setPen({ ...pen, width: w.value })}>{w.name}</button>)}</span>
+          </>}
+          <p className="text-sm basis-full" style={{ color: 'var(--md-on-surface-variant)' }}>{eraser ? 'Drag across a pen stroke to remove it.' : 'Draw with your finger or mouse.'}</p>
+        </div>)}
+      {tool === 'sign' && armed && (
+        <div className="px-4 py-2 flex items-center gap-3">
+          <p className="text-sm flex-1" role="status">Tap where the signature goes, or drag a box. Tap again to place it more than once.</p>
+          <button className={tonalBtn} style={tonalStyle} data-testid="sign-done" onClick={() => { setArmed(null); setTool('select') }}>Done</button>
+        </div>)}
       {tool === 'image' && <p className="px-4 py-2 text-sm" role="status" data-testid="image-hint">{armed ? 'Tap where the image goes, or drag a box.' : 'Tap the page to choose a picture (PNG or JPEG).'}</p>}
       <input id="insert-image" type="file" hidden accept="image/png,image/jpeg" data-testid="insert-image" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; const bm = await createImageBitmap(f); setArmed({ png: f, ratio: bm.height / bm.width }); bm.close() }} />
       {tool === 'redact' && (
@@ -228,6 +285,9 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
           <div className="flex gap-2 flex-wrap">
             <input aria-label="Text to find and mark" placeholder="Find text to mark" value={redactTerm} onChange={(e) => setRedactTerm(e.target.value)} className="flex-1 min-w-0 min-h-[44px] rounded-xl px-4" style={fieldStyle} data-testid="redact-term" />
             <button className={tonalBtn} style={tonalStyle} onClick={() => void markAll()} data-testid="redact-mark">Mark all</button>
+          </div>
+          <div className="flex gap-2 flex-wrap" role="group" aria-label="Find and mark">
+            {PRESETS.map((p) => <button key={p.id} className={tonalBtn} style={tonalStyle} disabled={Boolean(busy)} data-testid={`redact-preset-${p.id}`} onClick={() => void markPreset(p.id)}>{p.label}</button>)}
           </div>
           <button className={primaryBtn} disabled={marks === 0 || Boolean(busy)} data-testid="redact-apply"
             style={{ background: 'var(--md-error)', color: 'var(--md-on-error)' }} onClick={() => void applyRedaction()}>Apply redaction ({marks})</button>
@@ -242,16 +302,19 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
 
       <main ref={mainRef} className="flex-1 overflow-auto flex justify-center px-4 py-4 pb-28" style={{ touchAction: 'pan-x pan-y' }}>
         <div style={{ width: info.width * s, height: info.height * s, position: 'relative', flex: 'none', background: 'var(--paper)', boxShadow: '0 2px 8px rgba(0,0,0,.25)' }}>
-          <canvas ref={canvas} data-testid="page-canvas" aria-label={`Page ${page + 1}`} style={{ width: '100%', height: '100%', display: 'block' }} />
+          <canvas ref={canvas} data-testid="page-canvas" data-rev={session.rev} aria-label={`Page ${page + 1}`} style={{ width: '100%', height: '100%', display: 'block' }} />
           <div ref={overlay} data-testid="overlay" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={(e) => void onUp(e)} onPointerCancel={() => { start.current = null; setDraft(null); setInk([]) }}
             style={{ position: 'absolute', inset: 0, touchAction: tool === 'select' || tool === 'fields' ? 'auto' : 'none', cursor: tool === 'select' ? 'auto' : 'crosshair' }}>
             {pageHits?.quads.map((q, i) => { const b = boxOf(q); return <div key={i} data-testid="hit" style={{ position: 'absolute', left: b[0] * s, top: b[1] * s, width: (b[2] - b[0]) * s, height: (b[3] - b[1]) * s, background: 'rgba(255,200,0,.4)', pointerEvents: 'none' }} /> })}
             {draft && <div style={{ position: 'absolute', left: draft[0] * s, top: draft[1] * s, width: (draft[2] - draft[0]) * s, height: (draft[3] - draft[1]) * s, border: `2px dashed ${tool === 'redact' ? 'var(--md-error)' : 'var(--md-primary)'}`, background: tool === 'redact' ? 'var(--redact-mark)' : 'rgba(35,115,82,.12)', pointerEvents: 'none' }} />}
-            {ink.length > 1 && <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}><polyline fill="none" stroke="#1a3fb0" strokeWidth={2} points={ink.map((p) => `${p[0] * s},${p[1] * s}`).join(' ')} /></svg>}
+            {ink.length > 1 && <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}><polyline fill="none" stroke={eraser ? '#ba1a1a' : pen.color} strokeOpacity={eraser ? 0.5 : 1} strokeWidth={eraser ? ERASER_RADIUS * 2 * s : pen.width * s} strokeLinecap="round" strokeLinejoin="round" points={ink.map((p) => `${p[0] * s},${p[1] * s}`).join(' ')} /></svg>}
             {tool === 'fields' && fields.filter((f) => f.page === page).map((f) => {
               const st: React.CSSProperties = { position: 'absolute', left: f.rect[0] * s, top: f.rect[1] * s, width: (f.rect[2] - f.rect[0]) * s, height: (f.rect[3] - f.rect[1]) * s, minWidth: 24, minHeight: 24 }
               if (f.type === 'checkbox' || f.type === 'radio') return <input key={f.name + f.rect[0]} type="checkbox" aria-label={f.name} checked={Boolean(f.value)} style={st} data-testid="field" onChange={(e) => void run('Filling', (en, id) => en.setField(id, f.name, e.target.checked))} />
               if (f.type === 'choice') return <select key={f.name} aria-label={f.name} defaultValue={String(f.value)} style={st} data-testid="field" onChange={(e) => void run('Filling', (en, id) => en.setField(id, f.name, e.target.value))}>{(f.options ?? []).map((o) => <option key={o}>{o}</option>)}</select>
+              if (f.type === 'signature') return <button key={f.name + f.rect[0] + f.rect[1]} aria-label={`Sign ${f.name || 'here'}`} data-testid="sign-field" className="rounded-md text-xs font-medium"
+                style={{ ...st, background: 'rgba(196,238,220,.7)', border: '2px dashed var(--md-primary)', color: '#0b3d28' }}
+                onClick={() => { fieldTarget.current = f.rect; if (armed) void placeInField(armed.png, armed.ratio, f.rect); else setSignOpen(true) }}>Sign here</button>
               if (f.type === 'text') return <input key={f.name + f.rect[0]} aria-label={f.name} defaultValue={String(f.value)} style={{ ...st, background: 'rgba(196,238,220,.6)', border: '1px solid var(--md-primary)', fontSize: Math.max(10, (f.rect[3] - f.rect[1]) * s * 0.6) }} data-testid="field"
                 onBlur={(e) => { if (e.target.value !== String(f.value)) void run('Filling', (en, id) => en.setField(id, f.name, e.target.value)) }} />
               return null
@@ -284,8 +347,12 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
               onClick={() => { setPage(c.page); setContents(null) }}><span className="truncate">{c.title}</span><span className="text-sm shrink-0" style={{ color: 'var(--md-on-surface-variant)' }}>{c.page + 1}</span></button></li>))}</ul>
         ) : <p>This document has no contents list.</p>}
       </Sheet>
-      <SignSheet open={signOpen} onClose={() => { setSignOpen(false); if (!armed) setTool('select') }} onUse={async (png) => {
-        const bm = await createImageBitmap(png); setArmed({ png, ratio: bm.height / bm.width }); bm.close(); setSignOpen(false)
+      <SignSheet open={signOpen} onClose={() => { setSignOpen(false); if (!armed && tool !== 'fields') setTool('select') }} onUse={async (png) => {
+        const bm = await createImageBitmap(png); const ratio = bm.height / bm.width; bm.close(); setSignOpen(false)
+        const target = tool === 'fields' ? fieldTarget.current : null
+        fieldTarget.current = null
+        if (target) await placeInField(png, ratio, target)
+        else setArmed({ png, ratio })
       }} />
       <Sheet open={pop?.kind === 'edit'} title="Edit text" onClose={() => setPop(null)}>
         <label htmlFor="edit-text">Replace the selected words with</label>
@@ -299,13 +366,47 @@ export default function Canvas({ startPage, onBack, onSettings }: { startPage: n
           if (fallback) notify('The original font could not be reused, so a close match was used. Check the line before you save.')
         }}>Apply</button>
       </Sheet>
+      <Sheet open={pop?.kind === 'link'} title="Add a link" onClose={() => setPop(null)}>
+        <div role="radiogroup" aria-label="Where the link goes" className="flex gap-2">
+          <button role="radio" aria-checked={pop?.kind === 'link' && pop.mode === 'web'} className={tonalBtn} style={pop?.kind === 'link' && pop.mode === 'web' ? primaryStyle : tonalStyle} data-testid="link-web" onClick={() => pop?.kind === 'link' && setPop({ ...pop, mode: 'web', value: 'https://' })}>Web address</button>
+          <button role="radio" aria-checked={pop?.kind === 'link' && pop.mode === 'page'} className={tonalBtn} style={pop?.kind === 'link' && pop.mode === 'page' ? primaryStyle : tonalStyle} data-testid="link-page" onClick={() => pop?.kind === 'link' && setPop({ ...pop, mode: 'page', value: '1' })}>A page in this file</button>
+        </div>
+        <label htmlFor="link-value">{pop?.kind === 'link' && pop.mode === 'page' ? `Page number (1 to ${session.pages.length})` : 'Address'}</label>
+        <input id="link-value" value={pop?.kind === 'link' ? pop.value : ''} inputMode={pop?.kind === 'link' && pop.mode === 'page' ? 'numeric' : 'url'} onChange={(e) => pop?.kind === 'link' && setPop({ ...pop, value: e.target.value })} className="min-h-[44px] rounded-xl px-4" style={fieldStyle} data-testid="link-value" />
+        <button className={primaryBtn} style={primaryStyle} data-testid="link-apply" onClick={async () => {
+          if (pop?.kind !== 'link') return
+          const { rect, mode, value } = pop
+          if (mode === 'web' && !/^(https?:\/\/|mailto:|tel:)\S+$/i.test(value.trim())) return notify('Use an address that starts with https://, http://, mailto: or tel:')
+          const n = Math.floor(Number(value))
+          if (mode === 'page' && !(n >= 1 && n <= session.pages.length)) return notify(`Choose a page from 1 to ${session.pages.length}`)
+          setPop(null)
+          await run('Adding link', (e, id) => e.addLink(id, page, rect, mode === 'web' ? { uri: value.trim() } : { page: n - 1 }))
+        }}>Add link</button>
+      </Sheet>
       <Sheet open={pop?.kind === 'text'} title={pop?.kind === 'text' && pop.note ? 'Add a note' : 'Add text'} onClose={() => setPop(null)}>
         <label htmlFor="note-text">Text</label>
         <textarea id="note-text" rows={3} value={pop?.value ?? ''} onChange={(e) => pop && setPop({ ...pop, value: e.target.value })} className="rounded-xl px-4 py-3" style={fieldStyle} data-testid="note-text" />
+        {pop?.kind === 'text' && !pop.note && (<>
+          <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="Font">
+            {(['sans', 'serif', 'mono'] as const).map((f) => <button key={f} role="radio" aria-checked={textStyle.font === f} data-testid={`text-font-${f}`} className={tonalBtn} style={{ ...(textStyle.font === f ? primaryStyle : tonalStyle), fontFamily: f === 'serif' ? 'Georgia, "Times New Roman", serif' : f === 'mono' ? '"Courier Prime", monospace' : undefined }}
+              onClick={() => setTextStyle({ ...textStyle, font: f })}>{f === 'sans' ? 'Sans' : f === 'serif' ? 'Serif' : 'Mono'}</button>)}
+            <button aria-pressed={textStyle.bold} data-testid="text-bold" className={tonalBtn} style={{ ...(textStyle.bold ? primaryStyle : tonalStyle), fontWeight: 700 }} onClick={() => setTextStyle({ ...textStyle, bold: !textStyle.bold })}>B</button>
+            <button aria-pressed={textStyle.italic} data-testid="text-italic" className={tonalBtn} style={{ ...(textStyle.italic ? primaryStyle : tonalStyle), fontStyle: 'italic' }} onClick={() => setTextStyle({ ...textStyle, italic: !textStyle.italic })}>I</button>
+          </div>
+          <div className="flex gap-3 items-center flex-wrap">
+            <label className="flex items-center gap-2"><span>Size</span>
+              <input type="number" min={6} max={96} value={textStyle.size} data-testid="text-size" onChange={(e) => setTextStyle({ ...textStyle, size: Math.max(6, Math.min(96, Number(e.target.value) || 12)) })} className="w-20 min-h-[44px] rounded-xl px-3" style={fieldStyle} /></label>
+            <span className="flex gap-1" role="radiogroup" aria-label="Text colour">{COLOURS.map((c) => <button key={c.value} role="radio" aria-checked={textStyle.color === c.value} aria-label={c.name} data-testid={`text-colour-${c.name.toLowerCase()}`} onClick={() => setTextStyle({ ...textStyle, color: c.value })}
+              className="w-[44px] h-[44px] rounded-full" style={{ background: c.value, boxShadow: textStyle.color === c.value ? '0 0 0 3px var(--md-surface-container-low), 0 0 0 5px var(--md-primary)' : '0 0 0 1px var(--md-outline)' }} />)}</span>
+          </div>
+        </>)}
         <button className={primaryBtn} style={primaryStyle} data-testid="note-apply" onClick={async () => {
           if (pop?.kind !== 'text' || !pop.value.trim()) return
           const { rect, value, note } = pop; setPop(null)
-          await annotate(note ? 'note' : 'freetext', { rect, contents: value })
+          if (note) return void await annotate('note', { rect, contents: value })
+          let whole = true
+          await run('Adding text', async (e, id) => { whole = await e.addText(id, page, rect, value, textStyle) })
+          if (!whole) notify('Some characters are not in this font and were shown as question marks.')
         }}>Add</button>
       </Sheet>
     </div>

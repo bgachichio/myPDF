@@ -14,9 +14,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "asn1js": "3.0.10",
     "comlink": "4.4.2",
     "lucide-react": "1.49.0",
     "mupdf": "1.28.1",
+    "pkijs": "3.4.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tesseract.js": "7.0.0"

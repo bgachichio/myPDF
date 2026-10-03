@@ -8,8 +8,15 @@ import { opfs } from '@/storage/opfs'
 import { idb } from '@/storage/idb'
 import { noteDocumentOpened } from '@/features/privacy-receipt/receipt'
 import { warmEngine } from '@/engine/mupdf/warm'
+import type { SignatureReport } from '@/features/signing/pdfsign'
 
-export interface Session { id: string; storageId: string; name: string; pages: PageInfo[]; rev: number; marks: number; handle?: FileSystemFileHandle }
+export interface Session {
+  id: string; storageId: string; name: string; pages: PageInfo[]; rev: number; marks: number; handle?: FileSystemFileHandle
+  /** Size of the file as it was opened, in bytes, so Export can say how much smaller the result is. */
+  size: number
+  /** Signatures found in the file as it was opened. Any edit after that makes them stale. */
+  signatures: SignatureReport[]
+}
 export interface PendingPassword { name: string; bytes: Uint8Array; storageId?: string; wrong: boolean; handle?: FileSystemFileHandle }
 type Engine = ReturnType<typeof getEngine>
 
@@ -42,6 +49,11 @@ export const useSession = () => { const c = useContext(Ctx); if (!c) throw new E
 const PLAIN: SaveOptions = { compress: false, stripMetadata: false }
 const isImage = (f: File) => /^image\/(png|jpe?g)$/.test(f.type) || /\.(png|jpe?g)$/i.test(f.name)
 const own = (b: Uint8Array) => b.slice().buffer as ArrayBuffer
+const BYTE_RANGE = new TextEncoder().encode('/ByteRange')
+function hasByteRange(b: Uint8Array): boolean {
+  for (let i = b.indexOf(0x2f); i !== -1; i = b.indexOf(0x2f, i + 1)) { let k = 1; while (k < BYTE_RANGE.length && b[i + k] === BYTE_RANGE[k]) k++; if (k === BYTE_RANGE.length) return true }
+  return false
+}
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -52,6 +64,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [, force] = useState(0)
   const sessionRef = useRef<Session | null>(null)
   const persistTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  // Edits run one at a time, in the order they were made, so two quick taps never read the same snapshot.
+  const queue = useRef<Promise<unknown>>(Promise.resolve())
   sessionRef.current = session
 
   const notify = useCallback((m: string) => { setToast(m); setTimeout(() => setToast((t) => (t === m ? null : t)), 4000) }, [])
@@ -82,8 +96,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const sid = storageId ?? crypto.randomUUID()
     if (!storageId) await opfs.write(['docs', sid], 'original.pdf', bytes)
     history.current.clear()
-    apply({ id: res.id, storageId: sid, name, pages: res.pages, rev: 0, marks: 0, handle })
+    apply({ id: res.id, storageId: sid, name, pages: res.pages, rev: 0, marks: 0, handle, size: bytes.length, signatures: [] })
     setPending(null)
+    // A fresh open of a signed file reports its signatures (F19). A saved working copy was rewritten by the editor, so its signatures no longer apply.
+    if (!storageId && bytes.length > 0 && hasByteRange(bytes)) {
+      void import('@/features/signing/pdfsign').then((m) => m.checkSignatures(bytes)).then((signatures) => {
+        const cur = sessionRef.current
+        if (cur && cur.id === res.id && signatures.length) apply({ ...cur, signatures })
+      }).catch(() => undefined)
+    }
     persistSoon()
     noteDocumentOpened()
     if (res.repaired) notify('This file was damaged. It was repaired when opened. Check it before you share it.')
@@ -180,7 +201,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     apply({ ...s, pages: await engine.pages(s.id), rev: s.rev + 1, marks: opts?.marks ?? s.marks })
     persistSoon(); force((n) => n + 1)
   }
-  const run = useCallback((label: string, fn: (engine: Engine, id: string) => Promise<void>, opts?: { marks?: number }) => guarded(label, () => runCore(fn, opts)), [guarded]) // eslint-disable-line
+  const run = useCallback((label: string, fn: (engine: Engine, id: string) => Promise<void>, opts?: { marks?: number }) => {
+    const job = queue.current.then(() => guarded(label, () => runCore(fn, opts)))
+    queue.current = job.catch(() => undefined)
+    return job
+  }, [guarded]) // eslint-disable-line
 
   const swapTo = async (snap: Snapshot) => {
     const s = sessionRef.current!; const engine = getEngine()

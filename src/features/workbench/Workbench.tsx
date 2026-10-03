@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, Check, Copy, FilePlus2, FileText, Hash, Layers, Move, Settings, Pencil, Redo2, RotateCw, ScanText, Scissors, Trash2, Undo2, Minimize2 } from 'lucide-react'
+import { ArrowLeft, Check, Copy, FilePlus2, FileText, Hash, Layers, Move, MoreHorizontal, Settings, Pencil, Redo2, RotateCw, ScanText, Scissors, ShieldCheck, ShieldAlert, Trash2, Undo2, Minimize2 } from 'lucide-react'
 import { useSession } from '@/app/session'
 import Sheet, { primaryBtn, primaryStyle, tonalBtn, tonalStyle, fieldStyle } from '@/features/common/Sheet'
 import ExportSheet from '@/features/workbench/ExportSheet'
+import MoreSheet, { type MorePanel } from '@/features/workbench/MoreSheet'
 import Thumb from '@/features/workbench/Thumb'
 import { formatRanges, parseRanges, reorder } from '@/features/workbench/ranges'
 import { saveBytes } from '@/features/common/download'
@@ -20,6 +21,9 @@ export default function Workbench({ onBack, onEdit, onSettings }: Props) {
   const [rangeText, setRangeText] = useState('')
   const [wmText, setWmText] = useState('CONFIDENTIAL')
   const [ocrProgress, setOcrProgress] = useState<string | null>(null)
+  const [more, setMore] = useState<MorePanel>(null)
+  const [wmColour, setWmColour] = useState('#cccccc')
+  const [wmOpacity, setWmOpacity] = useState(1)
   const dragged = useRef(false)
   const pages = session?.pages ?? []
   const n = pages.length
@@ -113,11 +117,22 @@ export default function Workbench({ onBack, onEdit, onSettings }: Props) {
           <div className="truncate font-medium" style={{ fontSize: '1rem' }}>{session.name}</div>
           <div className="text-xs" style={{ color: 'var(--md-on-surface-variant)' }} data-testid="page-count">{n} {n === 1 ? 'page' : 'pages'}{sel.length ? `, ${sel.length} selected` : ''}</div>
         </div>
+
         <button aria-label="Undo" className={iconBtn} onClick={() => void undo()} disabled={!canUndo || Boolean(busy)} data-testid="undo"><Undo2 size={22} /></button>
         <button aria-label="Redo" className={iconBtn} onClick={() => void redo()} disabled={!canRedo || Boolean(busy)} data-testid="redo"><Redo2 size={22} /></button>
         <button className={`${primaryBtn} min-h-[44px] px-5`} style={primaryStyle} onClick={() => setPanel('export')} data-testid="export">Export</button>
         <button aria-label="Settings" className={iconBtn} onClick={onSettings} data-testid="settings"><Settings size={22} /></button>
       </header>
+      {session.signatures.length > 0 && (() => {
+        const bad = session.rev > 0 || session.signatures.some((x) => x.integrity !== 'valid')
+        return (
+          <button className="w-full px-4 min-h-[44px] flex items-center gap-2 text-sm text-left" data-testid="sig-chip" onClick={() => setMore('sigs')}
+            style={bad ? { background: 'var(--md-error-container)', color: 'var(--md-on-error-container)' } : { background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)' }}>
+            {bad ? <ShieldAlert size={18} aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}
+            <span className="flex-1">{session.rev > 0 ? 'You have edited a signed file. Saving it will break the signature.' : session.signatures.some((x) => x.integrity !== 'valid') ? 'A signature in this file does not check out.' : `Signed (${session.signatures.length}). The signed content is unchanged.`}</span>
+            <span aria-hidden="true">Details</span>
+          </button>)
+      })()}
 
       <main className="flex-1 px-4 pt-4 pb-32">
         {sel.length > 0 && (
@@ -154,6 +169,7 @@ export default function Workbench({ onBack, onEdit, onSettings }: Props) {
           {btn(<Hash size={22} />, 'Page numbers', () => void run('Numbering pages', (e, id) => e.stamp(id, 'pageNumbers')), 'dock-numbers')}
           {btn(<Layers size={22} />, 'Watermark', () => setPanel('watermark'), 'dock-watermark')}
           {btn(<ScanText size={22} />, 'OCR', () => setPanel('ocr'), 'dock-ocr')}
+          {btn(<MoreHorizontal size={22} />, 'More', () => setMore('menu'), 'dock-more')}
         </>) : (<>
           {btn(<Pencil size={22} />, 'Edit', () => onEdit(sel[0]), 'dock-edit')}
           {btn(<RotateCw size={22} />, 'Rotate', () => void run('Rotating', (e, id) => e.rotate(id, sel, 90)), 'dock-rotate')}
@@ -161,12 +177,14 @@ export default function Workbench({ onBack, onEdit, onSettings }: Props) {
           {btn(<Move size={22} />, 'Move', () => { setMoveTo(String(sel[0] + 1)); setPanel('move') }, 'dock-move')}
           {btn(<Scissors size={22} />, 'Extract', () => { setRangeText(formatRanges(sel)); setPanel('extract') }, 'dock-extract')}
           {btn(<Trash2 size={22} />, 'Delete', remove, 'dock-delete')}
+          {btn(<MoreHorizontal size={22} />, 'More', () => setMore('menu'), 'dock-more')}
         </>)}
       </nav>
       <input id="add-file-input" type="file" multiple hidden accept="application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg" data-testid="add-file-input"
         onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ''; if (f.length) void addFiles(f) }} />
 
       <ExportSheet open={panel === 'export'} onClose={() => setPanel(null)} />
+      <MoreSheet panel={more} setPanel={setMore} sel={sel} />
 
       <Sheet open={panel === 'move'} title="Move pages" onClose={() => setPanel(null)}>
         <label htmlFor="move-to">Move to position (1 to {n})</label>
@@ -181,7 +199,13 @@ export default function Workbench({ onBack, onEdit, onSettings }: Props) {
       <Sheet open={panel === 'watermark'} title="Text watermark" onClose={() => setPanel(null)}>
         <label htmlFor="wm">Watermark text</label>
         <input id="wm" value={wmText} maxLength={40} onChange={(e) => setWmText(e.target.value)} className="min-h-[44px] rounded-xl px-4" style={fieldStyle} />
-        <button className={primaryBtn} style={primaryStyle} data-testid="watermark-apply" onClick={() => { void run('Adding watermark', (e, id) => e.stamp(id, 'watermark', wmText)); setPanel(null) }}>Add to every page</button>
+        <div className="flex gap-2 flex-wrap items-center" role="radiogroup" aria-label="Watermark colour">
+          {([['#cccccc', 'Grey'], ['#ff0000', 'Red'], ['#1a3fb0', 'Blue']] as const).map(([v, name]) => <button key={v} role="radio" aria-checked={wmColour === v} data-testid={`wm-colour-${name.toLowerCase()}`} className={tonalBtn} style={wmColour === v ? primaryStyle : tonalStyle} onClick={() => setWmColour(v)}>{name}</button>)}
+        </div>
+        <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="Watermark strength">
+          {([[0.25, 'Faint'], [0.5, 'Medium'], [1, 'Strong']] as const).map(([v, name]) => <button key={v} role="radio" aria-checked={wmOpacity === v} data-testid={`wm-strength-${name.toLowerCase()}`} className={tonalBtn} style={wmOpacity === v ? primaryStyle : tonalStyle} onClick={() => setWmOpacity(v)}>{name}</button>)}
+        </div>
+        <button className={primaryBtn} style={primaryStyle} data-testid="watermark-apply" onClick={() => { void run('Adding watermark', (e, id) => e.stamp(id, 'watermark', wmText, { color: wmColour, opacity: wmOpacity })); setPanel(null) }}>Add to every page</button>
       </Sheet>
       <Sheet open={panel === 'ocr'} title="Recognise text (OCR)" onClose={() => (ocrProgress ? undefined : setPanel(null))}>
         <p style={{ color: 'var(--md-on-surface-variant)' }}>Adds an invisible text layer so scanned pages can be searched and copied. English, on this device. The page images do not change.</p>

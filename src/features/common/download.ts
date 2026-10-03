@@ -8,13 +8,24 @@ declare global {
   }
 }
 
-const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-const blobOf = (bytes: Uint8Array, kind: 'pdf' | 'docx' = 'pdf') => new Blob([bytes as unknown as BlobPart], { type: kind === 'docx' ? DOCX_TYPE : 'application/pdf' })
+/** Every kind of file the app can save. Names and types are what the save dialog and the download link show. */
+const KINDS = {
+  pdf: { mime: 'application/pdf', ext: '.pdf', description: 'PDF' },
+  docx: { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: '.docx', description: 'Word document' },
+  zip: { mime: 'application/zip', ext: '.zip', description: 'ZIP archive' },
+  png: { mime: 'image/png', ext: '.png', description: 'PNG picture' },
+  jpg: { mime: 'image/jpeg', ext: '.jpg', description: 'JPEG picture' },
+  txt: { mime: 'text/plain', ext: '.txt', description: 'Text file' },
+  p12: { mime: 'application/x-pkcs12', ext: '.p12', description: 'Signing ID' },
+} as const
+export type FileKind = keyof typeof KINDS
+const blobOf = (bytes: Uint8Array, kind: FileKind = 'pdf') => new Blob([bytes as unknown as BlobPart], { type: KINDS[kind].mime })
 
-export async function saveBytes(name: string, bytes: Uint8Array, kind: 'pdf' | 'docx' = 'pdf'): Promise<'saved' | 'downloaded' | 'cancelled'> {
+export async function saveBytes(name: string, bytes: Uint8Array, kind: FileKind = 'pdf'): Promise<'saved' | 'downloaded' | 'cancelled'> {
+  const k = KINDS[kind]
   if (window.showSaveFilePicker) {
     try {
-      const handle = await window.showSaveFilePicker({ suggestedName: name, types: [kind === 'docx' ? { description: 'Word document', accept: { [DOCX_TYPE]: ['.docx'] } } : { description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }] })
+      const handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: k.description, accept: { [k.mime]: [k.ext] } }] })
       const w = await handle.createWritable(); await w.write(bytes as unknown as BufferSource); await w.close()
       return 'saved'
     } catch (e) { if ((e as DOMException).name === 'AbortError') return 'cancelled' }
