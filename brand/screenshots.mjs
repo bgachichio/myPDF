@@ -21,4 +21,31 @@ await shot({ width: 1280, height: 800 }, 'page-wide.png', async (p) => {
   await open(p); await p.locator('[data-testid="page-0"] button').click(); await p.getByTestId('dock-edit').click()
   await p.getByTestId('page-canvas').waitFor(); await p.waitForTimeout(1200)
 })
+
+// Pictures for the launch page on gachichio.org (03-10-2026): the script-font signature sheet, the page grid, and a signed file with its notice.
+import { mkdirSync } from 'fs'
+mkdirSync(resolve(root, 'brand/site'), { recursive: true })
+const site = async (vp, file, fn) => {
+  const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: 2, colorScheme: 'light', acceptDownloads: true })
+  const page = await ctx.newPage(); await page.addInitScript(() => { delete window.showOpenFilePicker; delete window.showSaveFilePicker })
+  await page.goto('http://127.0.0.1:4173/'); await fn(page)
+  await page.screenshot({ path: resolve(root, 'brand/site', file) }); await ctx.close(); console.log('wrote', file)
+}
+await site({ width: 1280, height: 800 }, 'mypdf-sign.png', async (p) => {
+  await open(p); await p.locator('[data-testid="page-0"] button').click(); await p.getByTestId('dock-edit').click()
+  await p.getByTestId('page-canvas').waitFor(); await p.waitForTimeout(800)
+  await p.getByTestId('tool-sign').click(); await p.getByTestId('sign-tab-type').click()
+  await p.getByTestId('sign-typed').fill('Brian Gachichio'); await p.getByTestId('sign-font-great-vibes').click()
+  await p.getByTestId('sign-preview').waitFor(); await p.waitForTimeout(400)
+})
+await site({ width: 390, height: 844 }, 'mypdf-pages.png', async (p) => { await open(p); await p.waitForTimeout(2500); await p.locator('[data-testid="page-1"] button').click(); await p.locator('[data-testid="page-2"] button').click() })
+await site({ width: 390, height: 844 }, 'mypdf-signed.png', async (p) => {
+  await open(p); await p.getByTestId('export').click(); await p.getByTestId('sign-panel').locator('summary').click(); await p.getByTestId('sign-id-new').click()
+  await p.getByTestId('new-id-name').fill('Brian Gachichio'); await p.getByTestId('new-id-password').fill('correct-horse-9')
+  await Promise.all([p.waitForEvent('download'), p.getByTestId('new-id-make').click()])
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.getByTestId('sign-save').click()])
+  const file = resolve(root, 'brand/site/board-paper-signed.pdf'); await dl.saveAs(file)
+  await p.keyboard.press('Escape'); await p.getByLabel('Back to home').click()
+  await p.getByTestId('file-input').setInputFiles(file); await p.getByTestId('sig-chip').waitFor(); await p.waitForTimeout(5000)
+})
 await browser.close(); server.kill()
