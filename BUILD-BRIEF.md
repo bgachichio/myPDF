@@ -84,6 +84,8 @@ mypdf/
 | mupdf | 1.28.1 | AGPL-3.0-or-later | No render, edit, redact, encrypt or save. |
 | tesseract.js | 7.0.0 | Apache-2.0 | No OCR (F09, R09). |
 | comlink | 4.4.2 | Apache-2.0 | Hand-rolled worker RPC; more code, more bugs. |
+| pkijs | 3.4.1 | BSD-3-Clause | No certificate signing or signature checking (F19). Added 03-10-2026. |
+| asn1js | 3.0.10 | BSD-3-Clause | pkijs's parser. Added 03-10-2026. |
 | react, react-dom | 19.3.0 | MIT | House stack. |
 | vite | 8.3.1 | MIT | House stack. |
 | @vitejs/plugin-react | 6.1.1 | MIT | House stack. |
@@ -139,6 +141,8 @@ export interface PdfEngine {
 ```
 
 `AnnotationInput` and `FormField` are defined in the same file by the builder as plain data types. Adding a method is a handback.
+
+**Additions on 03-10-2026** (PRODUCT-SPEC section 12): `addText`, `eraseInk`, `crop`, `saveForSigning`, `addLink`; `stamp(id, kind, text?, opts?)`; `flatten(id, annotations?)`; `SaveOptions.ownerPassword` and `restrict`; `AnnotationInput.borderWidth`. Certificate signing finishes outside the engine, in `src/features/signing/`, on the bytes the engine returns.
 
 **Resolved engine calls.**
 - Merge: `graftPage`.

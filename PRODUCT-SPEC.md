@@ -6,13 +6,13 @@
 |---|---|
 | Product | myPDF (served at mypdf.gachichio.org; previously myPDFdoc at mypdfdoc.online) |
 | Owner | Brian Gachichio Karanja |
-| Status | Shipped v1.0 on 01-10-2026 (M0 to M4 built and live). Open by design: items 3 and 9 of §I.2 stay open until the dogfood log (to 20-12-2026) and the five interviews (A4) report; Pixel R01 manual check pending |
+| Status | Shipped v1.0 on 01-10-2026 (M0 to M4 built and live). v1.1 on 03-10-2026 completes the editor (F17 to F25, section 6). Open by design: items 3 and 9 of §I.2 stay open until the dogfood log (to 20-12-2026) and the five interviews (A4) report; Pixel R01 manual check pending |
 | Date | 30-09-2026 |
 | Licence | AGPL-3.0-or-later |
 | Shape | PWA, browser-first, with an optional local Docker companion |
 | Decision log | Section 12 of this document |
 
-Version history: v0.1 (30-09-2026) first draft, written from the upgrade research brief and three owner decisions logged in Section 12. v0.2 (30-09-2026) Workbench plus Canvas direction approved; MuPDF.js re-verified against alternatives and a live spike (Appendix D); fallback engine changed to EmbedPDF. v0.3 (30-09-2026) polished mock-up signed off; MinerU exclusion and EmbedPDF fallback approved; handover packet issued. v0.4 (30-09-2026) domain set to mypdf.gachichio.org; house sign-off and Support sheet (Paystack and Bitcoin) added as F15 and R15; mock-up v2 verified headless. v0.5 (30-09-2026) Bitcoin receiving details set: Lightning address and Taproot on-chain address. v0.6 (30-09-2026) F15 now follows the house rule in `builder` §6.1; gift-size wording removed; stored theme and font-scale values aligned with `designer` §12.
+Version history: v0.1 (30-09-2026) first draft, written from the upgrade research brief and three owner decisions logged in Section 12. v0.2 (30-09-2026) Workbench plus Canvas direction approved; MuPDF.js re-verified against alternatives and a live spike (Appendix D); fallback engine changed to EmbedPDF. v0.3 (30-09-2026) polished mock-up signed off; MinerU exclusion and EmbedPDF fallback approved; handover packet issued. v0.4 (30-09-2026) domain set to mypdf.gachichio.org; house sign-off and Support sheet (Paystack and Bitcoin) added as F15 and R15; mock-up v2 verified headless. v0.5 (30-09-2026) Bitcoin receiving details set: Lightning address and Taproot on-chain address. v0.6 (30-09-2026) F15 now follows the house rule in `builder` §6.1; gift-size wording removed; stored theme and font-scale values aligned with `designer` §12. v1.1 (03-10-2026) the editor is completed against the old myPDFdoc and the original intent: script-font signatures, initials, date and marks, signature fields, certificate signing and checking, pen options with an eraser, styled text, split, pages to pictures, crop, page-number options, limits on a protected file, links, redaction patterns, make marks permanent, save the text (F17 to F25, R16 to R22).
 
 ## 1. Outcome, written backwards
 
@@ -130,6 +130,17 @@ myPDF is a full PDF editor that runs inside the browser. You open a file, then r
 | F13 | Settings: Auto/Light/Dark theme defaulting to the device, a 4-step font size, default export options, all persisted in localStorage | Must-be (house standard) |
 | F14 | Delighter: a **Privacy Receipt** panel that counts network requests since launch and shows a green "0 bytes sent" badge | Attractive |
 | F16 | PDF to Word (text first): Save as Word in the Export sheet. Keeps paragraphs, headings, bold, italic and page breaks. Added 01-10-2026 | Attractive |
+| F17 | Typed text with a chosen font (sans, serif, mono), size, bold, italic and colour, wrapped inside the box. Replaces the fixed Text box. Added 03-10-2026 | Performance |
+| F18 | Pen with a chosen colour and width, and a stroke eraser. Added 03-10-2026 | Performance |
+| F19 | Certificate signatures: sign the finished PDF with a .p12 or .pfx, or with a self-issued ID made on the device; read the signatures in an opened file and say whether the signed content is unchanged. Added 03-10-2026 | Performance |
+| F20 | Limits on a protected file: allow or block printing, copying and editing, under an owner password. Added 03-10-2026 | Indifferent |
+| F21 | Crop pages by margins in millimetres. Added 03-10-2026 | Performance |
+| F22 | Split into files (every N pages, after chosen pages, or by ranges) as a ZIP; pages to pictures (PNG or JPEG, 96, 150 or 300 dpi). Added 03-10-2026 | Performance |
+| F23 | Save the text of every page as a .txt file. Added 03-10-2026 | Indifferent |
+| F24 | Make marks permanent: highlights, ink, shapes and notes become part of the page. Added 03-10-2026 | Indifferent |
+| F25 | Links: a clickable area that opens a web address or jumps to a page. Added 03-10-2026 | Indifferent |
+
+**Extensions of earlier features, 03-10-2026.** F06: four shipped script faces for typed signatures, initials kept apart from signatures, ink colour, date and tick and cross marks, the same mark placed more than once, and signing into a form's signature field. F07: ready-made patterns (email addresses, phone numbers, long numbers, KRA PINs) that mark every match, and a verification that checks no glyph overlaps a marked area. F11: page numbers take a corner, a style ("3", "Page 3", "3 of 12") and a first number; watermarks take a colour and strength. F12: the saved file name can be changed and the size against the original is shown.
 | F15 | Per `builder` §6.1: house sign-off "Made with ❤️ by Brian Gachichio" (linked to x.com/b_gachichio) on Home and in Settings, and a **Support** sheet with Paystack (card or M-Pesa, paystack.shop/pay/gachichio) and Bitcoin: Lightning `gachichio@walletofsatoshi.com` first, then on-chain Taproot `bc1ptrd8…q6yfu6`, each with Copy and Open wallet | Indifferent (house standard) |
 
 **Phase 2 (local companion, opt-in).**
@@ -138,10 +149,10 @@ myPDF is a full PDF editor that runs inside the browser. You open a file, then r
 |---|---|---|
 | C01 | ~~Office to PDF~~ **Removed 01-10-2026** (built, tested, then dropped as unnecessary) | - |
 | C02 | PDF to structured Markdown or JSON, including tables | Docling (MIT) |
-| C03 | Cryptographic PAdES signature with a local certificate | pyHanko (MIT) |
+| C03 | ~~Cryptographic PAdES signature with a local certificate~~ **Superseded 03-10-2026 by F19**, which does certificate signing in the browser with no companion | - |
 | C04 | Heavy batch OCR and PDF/A output | OCRmyPDF (MPL-2.0) |
 
-**Explicitly out of scope.** User accounts; cloud storage or sync; real-time collaboration; AI chat with a PDF; MinerU (GPU-bound, custom licence); PDF to Word conversion; reflowing whole paragraphs across lines; XFA forms; native app-store builds; any analytics or telemetry.
+**Explicitly out of scope.** User accounts; cloud storage or sync; real-time collaboration; AI chat with a PDF; MinerU (GPU-bound, custom licence); a layout-faithful PDF to Word conversion (F16 is text first); reflowing whole paragraphs across lines; XFA forms; creating new form fields; PAdES with a trusted timestamp and long-term validation; checking a signer against a trust list or for revocation; native app-store builds; any analytics or telemetry.
 
 ## 7. Requirements
 
@@ -163,6 +174,14 @@ Each requirement below is binary. Test files come from the 25-file fidelity corp
 | R12 | As a user I work offline. | With airplane mode on after install, R03 to R11 all pass. | P1 | Must-be |
 | R13 | As a user I trust that nothing uploads. | An automated Playwright test running scenarios 1 to 3 records zero requests to any origin other than mypdf.gachichio.org, and none after the initial asset load. User-tapped links to Paystack, X, GitHub or a wallet are navigations in a new tab that carry no document data, and are excluded. | P1 | Attractive |
 | R15 | As a user I can support the project. | Tapping Support on Home or in Settings opens the Support sheet. The Paystack option opens https://paystack.shop/pay/gachichio in a new tab. Each Copy button puts the exact configured address on the clipboard (Lightning, then on-chain). Open wallet uses a `lightning:` URI for Lightning and a `bitcoin:` URI for on-chain. A unit test re-verifies the on-chain address's bech32m checksum on every build, and the production build fails if either address is empty. The sign-off link opens x.com/b_gachichio. None of these fire a request until tapped. | P2 | Indifferent |
+| R16 | As a user I type my name, choose a script face, and place it. | The Type tab previews the name in each of four faces, `document.fonts.check` is true for the chosen face, and the placed signature is an image on the saved page. The faces load offline. Initials are saved apart from signatures and a date and a tick can be placed. The same mark can be placed twice before Done. | P1 | Performance |
+| R17 | As a user I sign a form's signature field. | On a file with a signature field, Fields shows Sign here, and the signature lands inside the field's box in the saved file. | P2 | Performance |
+| R18 | As a user I draw in my own colour and width, and erase. | A stroke drawn red and thick is saved as an ink annotation of that colour and 6 pt width; the eraser then removes it. A text box saved as bold italic serif 20 pt in red reads back as bold, italic, serif and 20 pt. | P2 | Performance |
+| R19 | As a user I sign with a certificate and others can check it. | A file signed in the app passes poppler `pdfsig` ("Signature is Valid") and an OpenSSL detached CMS verification; one changed byte makes the in-app check say changed; opening the signed file shows the signature, and an edit turns the notice into a warning; a wrong .p12 password and an old 3DES file are told apart in plain words. No request leaves the device (R13 scenario 4) and it works offline (R12). | P1 | Performance |
+| R20 | As a user I split a file and save pages as pictures. | Every 5 pages of a 14-page file gives a ZIP of three PDFs of 5, 5 and 4 pages; `unzip -t` reports no errors; one page saves as a PNG and several as a ZIP of JPEGs with the right file signatures. | P2 | Performance |
+| R21 | As a user I crop and number pages my way. | Cropping by 20 mm on every side shrinks each page by 40 mm in both directions; numbering "n of total" from 5 in the top right reads "6 of 18" on page 2 of 14 and sits in the top right corner. Both are right on a rotated page. | P2 | Performance |
+| R22 | As a user I limit what readers can do with the file. | A file saved with an owner password and printing switched off opens without a password, and a reader reports printing not allowed and copying allowed; switching a limit off without an owner password is refused with the reason. | P3 | Indifferent |
+| R23 | As a user I find all emails, phone numbers and KRA PINs to redact. | On a line holding an email, a phone number and a KRA PIN, the three patterns mark 1, then 2, then 3 areas; applying removes all three, keeps the words between them, and the verification reports no text left under the marks. | P1 | Performance |
 | R14 (REMOVED 01-10-2026) | As a user I use the companion when present. | With the companion running, a DOCX converts and opens. With it stopped, the DOCX option shows "Companion not running" and a set-up link, and no error. | P3 | Performance |
 
 **Quality-bar states (required, not left to taste).**
@@ -256,6 +275,19 @@ Planned at about 8 hours a week (100 hours in total). Every milestone ships some
 | 01-10-2026 | ESLint covers JS only; `tsc` is the TypeScript gate; share target lives in `public/share-target-sw.js` imported by the generated worker. | Claude Code | typescript-eslint does not support TypeScript 7.0; avoiding a new dependency (workbox-precaching) for a custom service worker. |
 | 01-10-2026 | M0 engine verdict: persevere with MuPDF.js (25 of 25, CI, real qpdf). M0 shell deployed to Vercel project `mypdf`; DNS CNAME for mypdf.gachichio.org pending at the DNS host. | Brian (go), Claude Code (evidence) | Corpus spike passed the 23-of-25 bar; kill threshold (under 20) not approached. |
 | 30-09-2026 | The fidelity corpus is built only from public or synthetic files; no real bank or client document ever enters the repository. | Claude, under developer §8.5 | A public AGPL repository would otherwise leak confidential data. |
+| 03-10-2026 | The editor is completed against the old myPDFdoc and the original intent (F17 to F25 and the extensions in section 6). Brian: myPDF must be a complete PDF editing suite, with signatures. | Brian (instruction), Claude Code | Gap review of myPDFdoc (pages to pictures, script-font signatures, text styling, pen options and eraser, split into several files, rename, before and after size were missing) and of this spec (certificate signing, which the research brief called out and which had been parked in the companion). Efforts/myPDF/Gap analysis 03-10-2026.md holds the list. |
+| 03-10-2026 | Two runtime dependencies added: `pkijs` 3.4.1 and `asn1js` 3.0.10 (BSD-3-Clause), loaded only when a certificate is used. `node-forge` was tried first and rejected: `npm audit` reports an unfixed high-severity advisory (GHSA-86w9-cpqp-85rv), and developer G3 fails on any high. The pkijs route keeps `npm audit` at 0. | Claude Code, under the standing instruction not to wait | BUILD-BRIEF section 4 says a package outside its table is a handback; recorded here for Brian to reverse. |
+| 03-10-2026 | A signing ID (.p12 or .pfx) must use modern encryption (AES). Files protected with the old 3DES or RC2 schemes are refused with a message that says how to fix it. | Claude Code | WebCrypto has no 3DES or RC2, and the only library that does (node-forge) carries the advisory above. The in-app "I do not have one" route always makes a modern file. |
+| 03-10-2026 | The signature is a PKCS#7 detached signature (`adbe.pkcs7.detached`, SHA-256) with the signing time, not PAdES, and it carries no timestamp from a time authority. The in-app check says whether the signed content is unchanged and does not judge the signer, revocation or trust. A self-issued ID proves the file is unchanged since signing, not who signed. | Claude Code | A browser cannot reach a time authority without sending the file's hash off the device, which would break the product's one promise. Said plainly in the interface and the launch page. |
+| 03-10-2026 | The private key of a signing ID is held in memory for the one save and is never stored. A newly made ID is offered as a password-protected .p12 download, and nothing is kept in IndexedDB. | Claude Code | No new storage; nothing for a later page to read. |
+| 03-10-2026 | The Text box now writes its text into the page content with a chosen base-14 face (new engine method `addText`), not a FreeText annotation. | Claude Code | MuPDF's annotation appearance only draws the regular Helvetica, Times and Courier; bold and italic need page content. The Note stays an annotation. |
+| 03-10-2026 | Engine interface additions (all additive, tested in `engine-m6.test.ts` and `signing.test.ts`): `addText`, `eraseInk`, `crop`, `saveForSigning`, `addLink`; `stamp` takes options; `flatten` takes `annotations`; `SaveOptions` gains `ownerPassword` and `restrict`; `AnnotationInput` gains `borderWidth`. | Claude Code | Each feature above needs one. A handback under BUILD-BRIEF section 5, taken without waiting. |
+| 03-10-2026 | Placement of images, page numbers, watermarks, replaced text and the OCR text layer now goes through the page's own transform, so they are upright and in the right place on a rotated or cropped page. Before this they used the unrotated page. | Claude Code | A defect found while building crop: page numbers on a rotated page came out sideways. Covered by tests on a rotated page. |
+| 03-10-2026 | Redaction verification now checks that no glyph's box overlaps the inside of a marked area, instead of reading the text between the area's corners. | Claude Code | The old read-back also picked up the words beside a marked area on a single line and reported them as left behind, a false alarm found by the pattern tests. The new check is exact and still fails if any text remains under a mark. |
+| 03-10-2026 | Edits run one at a time in the order they were made; the canvas carries `data-rev`, the document revision. | Claude Code | Two quick taps could read the same snapshot. The revision gives tests something exact to wait on. |
+| 03-10-2026 | Saved signatures gain an optional `role` (signature or initials) with no database version change; older records read as signatures. | Claude Code | A storage-schema change under BUILD-BRIEF section 6 that needs no migration. |
+| 03-10-2026 | Four open-licence script fonts are self-hosted, subset to Latin: Great Vibes, Dancing Script and Caveat (SIL OFL) and Homemade Apple (Apache-2.0), 175 KB together, loaded when the Type tab opens. Licences sit beside them in `public/fonts`. | Claude Code | Typed signatures were drawn in "Brush Script MT" or "cursive", which most Android and Linux devices do not have, so the result differed by device. |
+| 03-10-2026 | Not built, on purpose: printing from the app (the browser's own viewer prints a saved file), creating new form fields, editing bookmarks, attachments, comparing two files, and PDF/A. | Claude Code | Each is a separate product-sized job and none was in the original intent; printing is one tap in any browser once the file is saved. |
 
 **Risks.**
 
@@ -266,6 +298,8 @@ Planned at about 8 hours a week (100 hours in total). Every milestone ships some
 | Chrome's Private Network Access blocks calls from mypdf.gachichio.org to the localhost companion | Medium | Medium | Companion sends the PNA preflight headers; fallback is serving myPDF from the companion itself at localhost. |
 | Maintainer burnout (one builder) | Medium | High | 100-hour budget, 130-hour kill cap, strict scope. |
 | AGPL deters corporate contributors | Low | Low | Accepted; not a growth product. |
+| A self-issued signing ID is mistaken for proof of identity | Medium | Medium | The interface and the launch page say it proves the file is unchanged since signing and not who signed; other readers will show the issuer as unknown. |
+| A signing ID file is lost or its password forgotten | Medium | Low | Said at the moment of saving: both are needed to sign again. A new ID can be made at any time. |
 
 **Open questions.**
 
@@ -304,6 +338,8 @@ Lenovo (optional companion, docker compose, 127.0.0.1 only)
 | comlink | Apache-2.0 | Hand-written worker messaging; more code and more bugs. Optional: may be removed at G1 review. |
 | vite-plugin-pwa | MIT | No offline use, no install. |
 | React, Vite, Tailwind, shadcn/ui, lucide-react | MIT, ISC | House stack (builder §2.1). |
+| pkijs, asn1js (with pvtsutils, pvutils, bytestreamjs, tslib) | BSD-3-Clause, MIT, 0BSD | No certificate signing or signature checking (F19). Added 03-10-2026; loaded only when a certificate is used. |
+| Great Vibes, Dancing Script, Caveat, Homemade Apple (font files) | OFL-1.1, Apache-2.0 | Typed signatures fall back to a device font that differs by device. |
 
 Removed against the research brief: PDF.js, pdf-lib and jsPDF, all superseded by the single engine. That is 3 dependencies deleted.
 
@@ -362,6 +398,8 @@ Builder        : Claude Code - executes the packet, decides nothing
 | Silent data egress | CSP `connect-src 'self' http://127.0.0.1:*`; R13 Playwright test in CI. |
 | Fake redaction | Redaction applied with content removal, then verified by text extraction (R07). A drawn box is never labelled as redaction. |
 | Companion abuse by other local sites | Pairing token required; CORS allows only mypdf.gachichio.org and localhost origins. |
+| A signing key or its password read by another script | The key is imported into WebCrypto for one save and dropped; the password is never stored; the CSP allows no outside script; the .p12 is made with AES-256 and 200,000 PBKDF2 rounds. |
+| A forged or altered signature shown as good | The in-app check recomputes the digest of the signed ranges with WebCrypto and verifies the signature; poppler `pdfsig` and OpenSSL are run on every signed file in the tests. A changed byte reports changed. |
 
 **Rollback.** Rolling back the PWA means promoting the previous Vercel deployment. Rolling back the companion means `docker compose down` and pinning the previous image tags. Both are tested at M4.
 

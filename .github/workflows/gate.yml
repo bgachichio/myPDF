@@ -33,6 +33,6 @@ jobs:
       - if: steps.app.outputs.present == 'true'
         run: npm run build
       - if: steps.app.outputs.present == 'true' && hashFiles('scripts/corpus-check.mjs') != ''
-        run: sudo apt-get install -y qpdf && node scripts/corpus-check.mjs
+        run: sudo apt-get install -y qpdf poppler-utils unzip && node scripts/corpus-check.mjs # poppler's pdfsig and unzip are the independent checkers for F19 and F22
       - if: steps.app.outputs.present == 'true' && hashFiles('playwright.config.*') != ''
         run: npx playwright install --with-deps chromium firefox webkit && npx playwright test
