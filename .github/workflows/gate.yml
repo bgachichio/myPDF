@@ -35,5 +35,24 @@ jobs:
         run: npm run build
       - if: steps.app.outputs.present == 'true' && hashFiles('scripts/corpus-check.mjs') != ''
         run: sudo apt-get update && sudo apt-get install -y qpdf poppler-utils unzip && node scripts/corpus-check.mjs # poppler's pdfsig and unzip are the independent checkers for F19 and F22
-      - if: steps.app.outputs.present == 'true' && hashFiles('playwright.config.*') != ''
-        run: npx playwright install --with-deps chromium firefox webkit && npx playwright test
+
+  # End-to-end tests run per browser in parallel, each with its own cap: the three-browser suite in one job outran its 20 minutes (2026-10-23).
+  # `perf` depends on `main`, so --project=perf runs the Chromium suite and then the long-task measurement.
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: perf, browser: chromium }
+          - { project: firefox, browser: firefox }
+          - { project: webkit, browser: webkit }
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npx playwright test --project=${{ matrix.project }}
