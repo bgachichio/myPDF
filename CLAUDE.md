@@ -49,3 +49,8 @@ Playwright end-to-end tests run in CI and locally with `npx playwright test`; th
 
 ## Handback rule (builder section 0.1)
 Stop and return to Claude Chat on: a dependency not in `BUILD-BRIEF.md`; a change to the `PdfEngine` interface or a storage schema; any network origin not in the CSP; a deviation from `src/styles/tokens.css`; any requirement you cannot make pass as written.
+
+## House lines
+
+Copy: Cut taglines, helper text and secondary labels that restate a visible label or a control's name. Keep labels, format hints, errors, units, status and honesty tags, and every accessible name. If a screen needs copy to make sense, fix the layout first.
+Decide: When UX, DX and AX pull apart, decide in this order: nothing existing breaks (build, tests, the WCAG floor, the §12 defaults), then the user, then the agent, then the developer. Say which one lost, and why.
